@@ -22,23 +22,66 @@ Timestamp: The time the report was created. Reports with very recent timestamps 
 It is vital that you also have a bullshit detector and take descriptions and images with a grain of salt. If the description is clearly biased, you should give it a lower score.
 `;
 
+interface Report {
+  street_address: string;
+  coordinates: [number, number];
+  images?: string;
+  timestamp: string;
+  description: string;
+}
+
 export async function POST(req: Request) {
-  const { prompt }: { prompt: string } = await req.json();
+  try {
+    const { report1, report2 }: { report1: Report; report2: Report } = await req.json();
 
-  const result = await generateObject({
-    model: openai('gpt-5-nano'),
-    system: SYSTEM_PROMPT,
-    prompt,
-    schema: z.object({
-      "Ranking": z.number().min(1).max(2).describe('Ranking whether report 1 or report 2 is more critical and should be handled first. 1 is report 1, 2 is report 2.'),
-      "Reasoning": z.string().describe('Reasoning for the ranking'),
-    }),
-    providerOptions: {
-      openai: {
-        reasoning_effort: 'minimal', // Increases autonomous exploration
+    const result = await generateObject({
+      model: openai('gpt-4o-mini'),
+      system: SYSTEM_PROMPT,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `Report 1: 
+Address: ${report1.street_address}
+Coordinates: ${report1.coordinates}
+Timestamp: ${report1.timestamp}
+Description: ${report1.description}`,
+            },
+            ...(report1.images ? [{
+              type: 'image' as const,
+              image: report1.images,
+            }] : []),
+            {
+              type: 'text',
+              text: `\n\nReport 2:
+Address: ${report2.street_address}
+Coordinates: ${report2.coordinates}
+Timestamp: ${report2.timestamp}
+Description: ${report2.description}`,
+            },
+            ...(report2.images ? [{
+              type: 'image' as const,
+              image: report2.images,
+            }] : []),
+          ],
+        },
+      ],
+      schema: z.object({
+        "Ranking": z.number().min(1).max(2).describe('Ranking whether report 1 or report 2 is more critical and should be handled first. 1 is report 1, 2 is report 2.'),
+        "Reasoning": z.string().describe('Reasoning for the rankin. Also describe the images and description of the reports and how they compare to each other.'),
+      }),
+      providerOptions: {
+        openai: {
+          reasoning_effort: 'minimal',
+        },
       },
-    },
-  });
+    });
 
-  return result.toJsonResponse();
+    return result.toJsonResponse();
+  } catch (error) {
+    console.error('Error in ranking API:', error);
+    return Response.json({ error: 'Failed to process ranking request' }, { status: 500 });
+  }
 }
