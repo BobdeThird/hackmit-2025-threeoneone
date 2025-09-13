@@ -30,7 +30,9 @@ export async function GET(request: Request) {
     if (!searchRes.ok) throw new Error('ckan search failed')
     const searchJson = await searchRes.json()
     const pkg = searchJson?.result?.results?.[0]
-    const resource = (pkg?.resources || []).find((r: any) => r.datastore_active)
+    type CkanResource = { id: string; datastore_active?: boolean }
+    const resources: CkanResource[] = Array.isArray(pkg?.resources) ? (pkg.resources as CkanResource[]) : []
+    const resource = resources.find((r) => r.datastore_active)
     const resourceId = resource?.id
     if (!resourceId) throw new Error('no datastore resource')
 
@@ -41,10 +43,10 @@ export async function GET(request: Request) {
     const dsRes = await fetch(`${CKAN_DATASTORE}?${dsParams.toString()}`, { next: { revalidate: 60 } })
     if (!dsRes.ok) throw new Error('ckan datastore failed')
     const ds = await dsRes.json()
-    const records = ds?.result?.records ?? []
+    const records: unknown[] = ds?.result?.records ?? []
     const normalized = normalizeBoston311(records)
     return NextResponse.json({ count: normalized.length, items: normalized, source: 'ckan' })
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'Upstream error' }, { status: 503 })
   }
 }

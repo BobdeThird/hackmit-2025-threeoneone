@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
-import { MapPin, Navigation, Search, Settings, Zap } from "lucide-react";
+import { MapPin, Navigation } from "lucide-react";
 
 type CaseItem = {
   id: string;
@@ -43,10 +43,11 @@ function colorForCategory(name: string) {
 export default function GovPage() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const [mapboxToken, setMapboxToken] = useState("");
+  const mapboxToken = (process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string) || "";
   const [items, setItems] = useState<CaseItem[]>([]);
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   // Build GeoJSON from items with deterministic color per category
   const geojson: FeatureCollection = useMemo(() => {
@@ -87,6 +88,8 @@ export default function GovPage() {
       antialias: true,
     });
 
+    map.current.on("load", () => setMapReady(true));
+
     map.current.addControl(
       new mapboxgl.NavigationControl({ visualizePitch: true }),
       "top-right"
@@ -94,12 +97,14 @@ export default function GovPage() {
 
     map.current.on("style.load", () => {
       if (!map.current) return;
-      (map.current as any).setFog?.({
+      const fog: mapboxgl.FogSpecification = {
         range: [2, 8],
         color: "hsl(220, 27%, 8%)",
         "high-color": "hsl(217, 91%, 60%)",
         "horizon-blend": 0.1,
-      } as any);
+      };
+      // setFog is available in Mapbox GL JS v3+; cast for type safety across defs
+      (map.current as unknown as { setFog?: (f: mapboxgl.FogSpecification) => void }).setFog?.(fog);
     });
 
     return () => map.current?.remove();
@@ -125,16 +130,16 @@ export default function GovPage() {
 
   // Add or update non-clustered source + single points layer whenever geojson changes
   useEffect(() => {
-    if (!map.current) return;
+    if (!map.current || !mapReady) return;
     const m = map.current;
 
     if (m.getSource("cases")) {
-      (m.getSource("cases") as mapboxgl.GeoJSONSource).setData(geojson as any);
+      (m.getSource("cases") as mapboxgl.GeoJSONSource).setData(geojson as unknown as GeoJSON.FeatureCollection);
     } else {
       m.addSource("cases", {
         type: "geojson",
-        data: geojson as any,
-      } as any);
+        data: geojson as GeoJSON.FeatureCollection,
+      });
 
       m.addLayer({
         id: "points",
@@ -147,11 +152,11 @@ export default function GovPage() {
           "circle-stroke-width": 1.25,
           "circle-opacity": 0.95,
         },
-      } as any);
+      });
 
       // Click a point to show details
-      m.on("click", "points", (e: any) => {
-        const f = e.features?.[0];
+      m.on("click", "points", (e) => {
+        const f = (e as mapboxgl.MapLayerMouseEvent).features?.[0] as unknown as Feature | undefined;
         if (!f) return;
         setSelectedFeature(f as Feature);
       });
@@ -161,7 +166,7 @@ export default function GovPage() {
 
     // Apply category filter on the single points layer
     if (selectedCategory) {
-      m.setFilter("points", ["==", ["get", "category"], selectedCategory] as any);
+      m.setFilter("points", ["==", ["get", "category"], selectedCategory] as unknown as mapboxgl.Expression);
       // Fit to bounds
       const coords = geojson.features
         .filter((f) => f.properties.category === selectedCategory)
@@ -183,57 +188,18 @@ export default function GovPage() {
         );
       }
     } else {
-      m.setFilter("points", undefined as any);
+      m.setFilter("points", undefined as unknown as mapboxgl.Expression);
     }
-  }, [geojson, selectedCategory]);
-
-  const handleTokenSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const token = formData.get("token") as string;
-    if (token) setMapboxToken(token);
-  };
+  }, [geojson, selectedCategory, mapReady]);
 
   if (!mapboxToken) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="glass-strong rounded-2xl p-8 max-w-md w-full mx-4">
-          <div className="text-center mb-6">
-            <MapPin className="w-12 h-12 text-primary mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-2">Setup Map</h2>
-            <p className="text-muted-foreground">Enter your Mapbox public token to continue</p>
-          </div>
-          <form onSubmit={handleTokenSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="token" className="block text-sm font-medium mb-2">
-                Mapbox Public Token
-              </label>
-              <input
-                type="text"
-                id="token"
-                name="token"
-                placeholder="pk.eyJ1IjoieW91cnVzZXJuYW1lIiwi..."
-                className="w-full px-4 py-3 bg-secondary border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full btn-glass bg-primary/20 hover:bg-primary/30 text-primary-foreground font-medium"
-            >
-              Initialize Map
-            </button>
-          </form>
-          <p className="text-xs text-muted-foreground mt-4 text-center">
-            Get your token at{" "}
-            <a
-              href="https://mapbox.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline"
-            >
-              mapbox.com
-            </a>
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <div className="glass-strong rounded-2xl p-6 max-w-md w-full mx-4 text-center space-y-3">
+          <MapPin className="w-10 h-10 text-primary mx-auto" />
+          <h2 className="text-xl font-semibold">Missing Mapbox token</h2>
+          <p className="text-sm text-muted-foreground">
+            Set <code className="px-1 rounded bg-secondary">NEXT_PUBLIC_MAPBOX_TOKEN</code> in your <code className="px-1 rounded bg-secondary">.env.local</code> and reload.
           </p>
         </div>
       </div>

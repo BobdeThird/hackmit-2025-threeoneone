@@ -7,35 +7,50 @@ export type Normalized311Case = {
   createdAt?: string
   status?: string
   coordinates?: [number, number] // [lng, lat]
-  raw?: any
+  raw?: Record<string, unknown>
 }
 
-export function normalizeSf311(records: any[]): Normalized311Case[] {
+function getFirst<T>(obj: Record<string, unknown>, keys: string[]): T | undefined {
+  for (const key of keys) {
+    const value = obj[key]
+    if (value !== undefined && value !== null && value !== '') {
+      return value as T
+    }
+  }
+  return undefined
+}
+
+export function normalizeSf311(records: unknown[]): Normalized311Case[] {
   return records
-    .map((r) => {
-      const id = String(r.case_id ?? r.service_request_id ?? r.objectid ?? cryptoRandom())
-      const category = String(r.service_name ?? r.category ?? r.request_type ?? 'Unknown')
-      const description = String(
-        r.description ?? r.status_notes ?? r.request_details ?? r.service_subtype ?? ''
+    .map((rec) => {
+      const r = rec as Record<string, unknown>
+      const id = String(
+        getFirst<string | number>(r, ['case_id', 'service_request_id', 'objectid']) ?? cryptoRandom()
       )
-      const address = r.address ?? r.address_as_string ?? r.address_text ?? undefined
-      const status = r.status_description ?? r.status ?? undefined
-      const createdAt = r.requested_datetime ?? r.opened ?? r.created_date ?? undefined
+      const category = String(
+        getFirst<string>(r, ['service_name', 'category', 'request_type']) ?? 'Unknown'
+      )
+      const description = String(
+        getFirst<string>(r, ['description', 'status_notes', 'request_details', 'service_subtype']) ?? ''
+      )
+      const address = getFirst<string>(r, ['address', 'address_as_string', 'address_text'])
+      const status = getFirst<string>(r, ['status_description', 'status'])
+      const createdAt = getFirst<string>(r, ['requested_datetime', 'opened', 'created_date'])
       let lng: number | undefined
       let lat: number | undefined
-      if (r.point_geom && Array.isArray(r.point_geom.coordinates)) {
+      const pointGeom = getFirst<{ type: string; coordinates: [number, number] }>(r, ['point_geom'])
+      if (pointGeom && Array.isArray(pointGeom.coordinates)) {
         // Socrata geometry column
-        lng = Number(r.point_geom.coordinates[0])
-        lat = Number(r.point_geom.coordinates[1])
-      } else if (r.point && (r.point.longitude ?? r.point.latitude)) {
-        lng = Number(r.point.longitude)
-        lat = Number(r.point.latitude)
-      } else if (r.long && r.lat) {
-        lng = Number(r.long)
-        lat = Number(r.lat)
-      } else if (r.longitude && r.latitude) {
-        lng = Number(r.longitude)
-        lat = Number(r.latitude)
+        lng = Number(pointGeom.coordinates[0])
+        lat = Number(pointGeom.coordinates[1])
+      } else {
+        const point = getFirst<{ longitude?: string | number; latitude?: string | number }>(r, ['point'])
+        const longStr = getFirst<string | number>(r, ['long', 'longitude']) ?? point?.longitude
+        const latStr = getFirst<string | number>(r, ['lat', 'latitude']) ?? point?.latitude
+        if (longStr !== undefined && latStr !== undefined) {
+          lng = Number(longStr)
+          lat = Number(latStr)
+        }
       }
       const coordinates =
         typeof lng === 'number' && typeof lat === 'number' ? ([lng, lat] as [number, number]) : undefined
@@ -55,23 +70,29 @@ export function normalizeSf311(records: any[]): Normalized311Case[] {
     .filter((i) => i.coordinates)
 }
 
-export function normalizeBoston311(records: any[]): Normalized311Case[] {
+export function normalizeBoston311(records: unknown[]): Normalized311Case[] {
   return records
-    .map((r) => {
-      const id = String(r.service_request_id ?? r.case_id ?? cryptoRandom())
-      const category = String(r.service_name ?? r.service_code ?? 'Unknown')
-      const description = String(r.description ?? r.service_notice ?? '')
-      const address = r.address ?? r.request_address ?? undefined
-      const status = r.status ?? undefined
-      const createdAt = r.requested_datetime ?? r.created_at ?? undefined
+    .map((rec) => {
+      const r = rec as Record<string, unknown>
+      const id = String(
+        getFirst<string | number>(r, ['service_request_id', 'case_id']) ?? cryptoRandom()
+      )
+      const category = String(
+        getFirst<string>(r, ['service_name', 'service_code']) ?? 'Unknown'
+      )
+      const description = String(
+        getFirst<string>(r, ['description', 'service_notice']) ?? ''
+      )
+      const address = getFirst<string>(r, ['address', 'request_address'])
+      const status = getFirst<string>(r, ['status'])
+      const createdAt = getFirst<string>(r, ['requested_datetime', 'created_at'])
       let lng: number | undefined
       let lat: number | undefined
-      if (r.long && r.lat) {
-        lng = Number(r.long)
-        lat = Number(r.lat)
-      } else if (r.longitude && r.latitude) {
-        lng = Number(r.longitude)
-        lat = Number(r.latitude)
+      const longStr = getFirst<string | number>(r, ['long', 'longitude'])
+      const latStr = getFirst<string | number>(r, ['lat', 'latitude'])
+      if (longStr !== undefined && latStr !== undefined) {
+        lng = Number(longStr)
+        lat = Number(latStr)
       }
       const coordinates =
         typeof lng === 'number' && typeof lat === 'number' ? ([lng, lat] as [number, number]) : undefined

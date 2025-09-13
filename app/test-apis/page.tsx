@@ -2,7 +2,17 @@
 
 import { useEffect, useState } from "react";
 
-type ApiResult = { count?: number; items?: any[]; error?: string };
+type ApiItem = {
+  id: string;
+  city: "sf" | "boston";
+  category: string;
+  description: string;
+  address?: string;
+  status?: string;
+  createdAt?: string;
+  coordinates?: [number, number];
+};
+type ApiResult = { count?: number; items?: ApiItem[]; error?: string };
 
 export default function TestApisPage() {
   const [sf, setSf] = useState<ApiResult | null>(null);
@@ -19,9 +29,10 @@ export default function TestApisPage() {
         const [sfData, bosData] = await Promise.all([sfRes.json(), bosRes.json()]);
         setSf(sfData);
         setBos(bosData);
-      } catch (e: any) {
-        setSf({ error: String(e) });
-        setBos({ error: String(e) });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setSf({ error: msg });
+        setBos({ error: msg });
       } finally {
         setLoading(false);
       }
