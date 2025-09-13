@@ -120,3 +120,39 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Map utilities */
+@layer components {
+  .map-container {
+    @apply w-full h-full;
+  }
+  .map-overlay {
+    @apply rounded-xl p-3 border border-border/60 shadow-md;
+    background: color-mix(in oklab, var(--color-background) 70%, transparent);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+  .btn-glass {
+    @apply rounded-lg border border-border/60 hover:shadow transition;
+    background: color-mix(in oklab, var(--color-background) 60%, transparent);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+  .glass {
+    @apply bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/40;
+  }
+  .glass-strong {
+    @apply bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/50;
+  }
+  .animate-glow-pulse {
+    animation: glow 2s ease-in-out infinite;
+  }
+  .bg-map-accent {
+    background: oklch(0.696 0.17 162.48);
+  }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 0px rgba(56, 189, 248, 0.0); }
+  50% { box-shadow: 0 0 16px rgba(56, 189, 248, 0.5); }
+}
