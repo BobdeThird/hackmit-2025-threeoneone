@@ -1,0 +1,132 @@
+[
+    {
+      "Location": "12 Greenwich Park, Roxbury, Ma, 02118",
+      "Description": "Bricks in the sidewalk are lifting up and makes for very dangerous walking. I tripped and fell and injured my knee and leg",
+      "Picture": {
+        "1": "https://spot-boston-res.cloudinary.com/image/upload/f_auto/c_scale,dpr_2.0,w_200/v1/boston/production/b9ejmlrbjhckdj0krs7n"
+      },
+      "Timestamp": "1m ago",
+      "Metadata": {
+        "TicketType": "Broken Sidewalk",
+        "Status": "OPEN",
+        "ID": "101006286579"
+      }
+    },
+    {
+      "Location": "Intersection Of Farragut Rd And E First St, South Boston, Ma",
+      "Description": "Pile of glass at intersection of Shore and 1st",
+      "Picture": {
+        "1": "https://spot-boston-res.cloudinary.com/image/upload/v1757791097/boston/production/jujcwtmgbtabcpbtojcy.jpg#spot=e29ded76-629d-49a2-95da-7ed9133e61e9"
+      },
+      "Timestamp": "1m ago",
+      "Metadata": {
+        "TicketType": "Other",
+        "Status": "OPEN",
+        "ID": "101006286580"
+      }
+    },
+    {
+      "Location": "370 Western Ave, Brighton, Ma, 02135",
+      "Description": "Rat sighting in shaws parking lot",
+      "Picture": {
+        "1": "https://spot-boston-res.cloudinary.com/image/upload/f_auto/c_scale,dpr_2.0,w_200/v1/boston/production/ghtd90ll1yaslfidqucn",
+        "2": "https://spot-boston-res.cloudinary.com/image/upload/f_auto/c_scale,dpr_2.0,w_200/v1/boston/production/ufecfxjg9ihnkyidjl2x",
+        "3": "https://spot-boston-res.cloudinary.com/image/upload/f_auto/c_scale,dpr_2.0,w_200/v1/boston/production/qgnpqkvpxvknj4lykfu4"
+      },
+      "Timestamp": "1m ago",
+      "Metadata": {
+        "TicketType": "Rodent Activity",
+        "Status": "OPEN",
+        "ID": "101006286578"
+      }
+    },
+    {
+      "Location": "561 Dudley St, Dorchester, Ma, 02125",
+      "Description": "",
+      "Picture": {
+      },
+      "Timestamp": "3m ago",
+      "Metadata": {
+        "TicketType": "Requests for Street Cleaning",
+        "Status": "OPEN",
+        "ID": "101006286577"
+      }
+    },
+    {
+      "Location": "133 Saratoga St, East Boston, Ma, 02128",
+      "Description": "Car blocking fire hydrant since Friday morning. Ticket or tow please",
+      "Picture": {
+        "1": "https://spot-boston-res.cloudinary.com/image/upload/f_auto/c_scale,dpr_2.0,w_200/v1/boston/production/g0chatnndsbkz6n1jcza"
+      },
+      "Timestamp": "5m ago",
+      "Metadata": {
+        "TicketType": "Illegal Parking",
+        "Status": "OPEN",
+        "ID": "101006286573"
+      }
+    },
+    {
+      "Location": "28 Emerson St, South Boston, Ma, 02127",
+      "Description": "Number of rats: [6] Rat bites: [No] Rats in the house: [No] Rats outside of property: [Yes] What is the nature of the problem: [Every night, rodents run across yards. Caller states rat activity getting worse. Rats digging through residents' yards.]",
+      "Picture": {
+      },
+      "Timestamp": "5m ago",
+      "Metadata": {
+        "TicketType": "Rodent Activity",
+        "Status": "OPEN",
+        "ID": "101006286575"
+      }
+    },
+    {
+      "Location": "16 Wichita Ter, Mattapan, Ma, 02126",
+      "Description": "This car has been parked and unmoved from this location for at least a month. I wonder if this is a legal parking spot or if the car has been abandoned because this area has never been used as a parking spot before.",
+      "Picture": {
+        "1": "https://spot-boston-res.cloudinary.com/image/upload/f_auto/c_scale,dpr_2.0,w_200/v1/boston/production/g3e9bor1kzqhj1lynafa",
+        "2": "https://spot-boston-res.cloudinary.com/image/upload/f_auto/c_scale,dpr_2.0,w_200/v1/boston/production/jk2119sslld6w0wbbnsh"
+      },
+      "Timestamp": "5m ago",
+      "Metadata": {
+        "TicketType": "Illegal Parking",
+        "Status": "OPEN",
+        "ID": "101006286572"
+      }
+    },
+    {
+      "Location": "112 Brighton Ave, Allston, Ma, 02134",
+      "Description": "Trash full. Please empty",
+      "Picture": {
+      },
+      "Timestamp": "8m ago",
+      "Metadata": {
+        "TicketType": "Empty Litter Basket",
+        "Status": "OPEN",
+        "ID": "101006286570"
+      }
+    },
+    {
+      "Location": "Intersection Of Sherwin St And Thorndike St, Roxbury, Ma",
+      "Description": "Needle cleanup",
+      "Picture": {
+       "1": "https://spot-boston-res.cloudinary.com/image/upload/f_auto/c_scale,dpr_2.0,w_200/v1/boston/production/zxmmtgekwfi4pzwj4ccs"
+      },
+      "Timestamp": "11m ago",
+      "Metadata": {
+        "TicketType": "Needle Cleanup",
+        "Status": "OPEN",
+        "ID": "101006286566"
+      }
+    },
+    {
+      "Location": "560 578 E Fourth St, South Boston, Ma, 02127",
+      "Description": "Constituent states that a mattress was illegally dumped in front of this address. States that the mattress was dumped and does not belong to anyone who lives in the area |",
+      "Picture": {
+      },
+      "Timestamp": "12m ago",
+      "Metadata": {
+        "TicketType": "Illegal Dumping",
+        "Status": "OPEN",
+        "ID": "101006286567"
+      }
+    }
+  ]
+  
