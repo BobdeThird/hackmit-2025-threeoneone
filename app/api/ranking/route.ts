@@ -9,7 +9,7 @@ For each report, you will be given the following information:
 interface Issue {
   street_address: string;
   coordinates: [number, number]; // [lat, lon]
-  images?: string;                // optional
+  images?: string[];              // optional array of image URLs
   timestamp: string;
   description: string;
 }
@@ -25,7 +25,7 @@ It is vital that you also have a bullshit detector and take descriptions and ima
 interface Report {
   street_address: string;
   coordinates: [number, number];
-  images?: string;
+  images?: string[];              // optional array of image URLs
   timestamp: string;
   description: string;
 }
@@ -49,10 +49,11 @@ Coordinates: ${report1.coordinates}
 Timestamp: ${report1.timestamp}
 Description: ${report1.description}`,
             },
-            ...(report1.images ? [{
-              type: 'image' as const,
-              image: report1.images,
-            }] : []),
+            ...(report1.images && report1.images.length > 0 ? 
+              report1.images.map(imageUrl => ({
+                type: 'image' as const,
+                image: imageUrl,
+              })) : []),
             {
               type: 'text',
               text: `\n\nReport 2:
@@ -61,10 +62,11 @@ Coordinates: ${report2.coordinates}
 Timestamp: ${report2.timestamp}
 Description: ${report2.description}`,
             },
-            ...(report2.images ? [{
-              type: 'image' as const,
-              image: report2.images,
-            }] : []),
+            ...(report2.images && report2.images.length > 0 ? 
+              report2.images.map(imageUrl => ({
+                type: 'image' as const,
+                image: imageUrl,
+              })) : []),
           ],
         },
       ],
