@@ -14,9 +14,10 @@ import type { Post } from "@/lib/types"
 interface PostDetailViewProps {
   post: Post
   onVote?: (postId: string, voteType: "up" | "down") => void // Made optional since we'll handle it internally
+  compact?: boolean
 }
 
-export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProps) {
+export function PostDetailView({ post: initialPost, onVote, compact = false }: PostDetailViewProps) {
   const [showComments, setShowComments] = useState(true) // Default to showing comments on detail page
   const [post, setPost] = useState(initialPost)
   
@@ -89,11 +90,11 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
   return (
     <div className="space-y-0">
       <div className="twitter-card border-0 bg-black">
-        <div className="px-4 py-3">
+        <div className={`${compact ? 'px-3 py-2' : 'px-4 py-3'}`}>
           <div className="w-full">
             {/* Header info */}
-            <div className="flex items-center space-x-2 text-sm mb-3">
-              <span className="font-bold text-white text-lg">{post.location}</span>
+            <div className={`flex items-center space-x-2 ${compact ? 'text-[11px] mb-2' : 'text-sm mb-3'}`}>
+              <span className={`font-bold text-white ${compact ? 'text-base' : 'text-lg'}`}>{post.location}</span>
               <span className="text-muted-foreground">·</span>
               <span className="text-muted-foreground">
                 {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
@@ -101,7 +102,7 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
             </div>
 
             <div className="mb-4">
-              <p className="text-white text-lg leading-relaxed">{post.description}</p>
+              <p className={`text-white ${compact ? 'text-sm leading-6' : 'text-lg leading-relaxed'}`}>{post.description}</p>
             </div>
 
             {/* Image if present */}
@@ -133,7 +134,7 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
               <div className="flex items-center">
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size={compact ? "sm" : "sm"}
                   onClick={() => handleVote("up")}
                   className={`twitter-button h-10 px-3 rounded-full ${
                     post.userVote === "up"
@@ -141,7 +142,7 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
                       : "text-muted-foreground hover:text-green-500 hover:bg-green-500/10"
                   }`}
                 >
-                  <ArrowUp className="h-5 w-5 mr-1" />
+                  <ArrowUp className={`${compact ? 'h-4 w-4' : 'h-5 w-5'} mr-1`} />
                   <span className={`text-sm font-medium ${
                     post.userVote === "up" ? "text-green-500" : "text-white"
                   }`}>{post.upvotes}</span>
@@ -152,7 +153,7 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
               <div className="flex items-center">
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size={compact ? "sm" : "sm"}
                   onClick={() => handleVote("down")}
                   className={`twitter-button h-10 px-3 rounded-full ${
                     post.userVote === "down"
@@ -160,7 +161,7 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
                       : "text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
                   }`}
                 >
-                  <ArrowDown className="h-5 w-5 mr-1" />
+                  <ArrowDown className={`${compact ? 'h-4 w-4' : 'h-5 w-5'} mr-1`} />
                   <span className={`text-sm font-medium ${
                     post.userVote === "down" ? "text-red-500" : "text-white"
                   }`}>{post.downvotes}</span>
@@ -171,12 +172,12 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
               <div className="flex items-center">
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size={compact ? "sm" : "sm"}
                   onClick={() => setShowComments(!showComments)}
                   className="twitter-button h-10 px-3 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
                 >
-                  <MessageCircle className="h-5 w-5 mr-1" />
-                  <span className="text-sm font-medium text-white">{post.comments.length}</span>
+                  <MessageCircle className={`${compact ? 'h-4 w-4' : 'h-5 w-5'} mr-1`} />
+                  <span className={`${compact ? 'text-xs' : 'text-sm'} font-medium text-white`}>{post.comments.length}</span>
                 </Button>
               </div>
 
@@ -184,12 +185,12 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
               <div className="flex items-center">
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size={compact ? "sm" : "sm"}
                   onClick={handleShare}
                   className="twitter-button h-10 px-3 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
                 >
-                  <Share className="h-5 w-5 mr-1" />
-                  <span className="text-sm font-medium text-white">Share</span>
+                  <Share className={`${compact ? 'h-4 w-4' : 'h-5 w-5'} mr-1`} />
+                  <span className={`${compact ? 'text-xs' : 'text-sm'} font-medium text-white`}>Share</span>
                 </Button>
               </div>
             </div>
@@ -200,10 +201,11 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
       {/* Comments section */}
       {showComments && (
         <div className="border-t border-[#2f3336] bg-black">
-          <div className="p-4">
+          <div className={`${compact ? 'p-3' : 'p-4'}`}>
             <CommentSection
               postId={post.id}
               comments={post.comments}
+              compact={compact}
               onAdded={(c) => {
                 setPost((prev) => ({
                   ...prev,

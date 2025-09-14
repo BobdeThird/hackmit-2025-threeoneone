@@ -5,6 +5,7 @@ import { PostCard } from "@/components/ui/post-card"
 import type { Post } from "@/lib/types"
 import { supabase } from "@/lib/supabaseClient"
 import { getUserVoteForPost, updateUserVote } from "@/lib/vote-persistence"
+import { computeHotScore } from "@/lib/utils"
 
 interface FeedProps {
   selectedCity: string
@@ -29,7 +30,8 @@ export function Feed({ selectedCity }: FeedProps) {
         .from('report_ranked')
         .select('id, street_address, description, reported_time, images, city, upvotes, downvotes')
         .eq('city', dbCity)
-        .order('reported_time', { ascending: false })
+        .order('upvotes', { ascending: false })
+        .order('downvotes', { ascending: true })
         .range(currentOffset, currentOffset + POSTS_PER_PAGE - 1)
       
       if (error) throw error
@@ -63,10 +65,27 @@ export function Feed({ selectedCity }: FeedProps) {
         }
       } catch {}
 
+      // Ensure client-side sort consistent with desired ordering
+      mapped.sort((a, b) => {
+        const hb = computeHotScore(b.upvotes, b.downvotes, b.createdAt)
+        const ha = computeHotScore(a.upvotes, a.downvotes, a.createdAt)
+        if (hb !== ha) return hb - ha
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      })
+
       if (isInitial) {
         setPosts(mapped)
       } else {
-        setPosts(prev => [...prev, ...mapped])
+        setPosts(prev => {
+          const combined = [...prev, ...mapped]
+          combined.sort((a, b) => {
+            const hb = computeHotScore(b.upvotes, b.downvotes, b.createdAt)
+            const ha = computeHotScore(a.upvotes, a.downvotes, a.createdAt)
+            if (hb !== ha) return hb - ha
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          })
+          return combined
+        })
       }
 
       // Check if we have more data
@@ -136,22 +155,32 @@ export function Feed({ selectedCity }: FeedProps) {
     updateUserVote(postId, nextVote)
 
     // Optimistic UI update
-    setPosts((prev) => prev.map((p) => {
-      if (p.id !== postId) return p
-      let up = p.upvotes
-      let down = p.downvotes
-      if (nextVote === null) {
-        if (previousVote === 'up') up = Math.max(0, up - 1)
-        if (previousVote === 'down') down = Math.max(0, down - 1)
-      } else if (nextVote === 'up') {
-        up = up + 1
-        if (previousVote === 'down') down = Math.max(0, down - 1)
-      } else {
-        down = down + 1
-        if (previousVote === 'up') up = Math.max(0, up - 1)
-      }
-      return { ...p, upvotes: up, downvotes: down, userVote: nextVote }
-    }))
+    setPosts((prev) => {
+      const updated = prev.map((p) => {
+        if (p.id !== postId) return p
+        let up = p.upvotes
+        let down = p.downvotes
+        if (nextVote === null) {
+          if (previousVote === 'up') up = Math.max(0, up - 1)
+          if (previousVote === 'down') down = Math.max(0, down - 1)
+        } else if (nextVote === 'up') {
+          up = up + 1
+          if (previousVote === 'down') down = Math.max(0, down - 1)
+        } else {
+          down = down + 1
+          if (previousVote === 'up') up = Math.max(0, up - 1)
+        }
+        return { ...p, upvotes: up, downvotes: down, userVote: nextVote }
+      })
+      // Resort after optimistic update
+      updated.sort((a, b) => {
+        const hb = computeHotScore(b.upvotes, b.downvotes, b.createdAt)
+        const ha = computeHotScore(a.upvotes, a.downvotes, a.createdAt)
+        if (hb !== ha) return hb - ha
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      })
+      return updated
+    })
 
     try {
       const res = await fetch('/api/report/vote', {
@@ -161,7 +190,16 @@ export function Feed({ selectedCity }: FeedProps) {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json?.error || 'vote failed')
-      setPosts(prev => prev.map(p => p.id === postId ? { ...p, upvotes: (json.upvotes ?? p.upvotes) as number, downvotes: (json.downvotes ?? p.downvotes) as number } : p))
+      setPosts(prev => {
+        const updated = prev.map(p => p.id === postId ? { ...p, upvotes: (json.upvotes ?? p.upvotes) as number, downvotes: (json.downvotes ?? p.downvotes) as number } : p)
+        updated.sort((a, b) => {
+          const hb = computeHotScore(b.upvotes, b.downvotes, b.createdAt)
+          const ha = computeHotScore(a.upvotes, a.downvotes, a.createdAt)
+          if (hb !== ha) return hb - ha
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        })
+        return updated
+      })
     } catch {
       // On failure, refetch just this post's counts
       try {
@@ -170,7 +208,16 @@ export function Feed({ selectedCity }: FeedProps) {
           .select('id, upvotes, downvotes')
           .eq('id', postId)
           .single()
-        if (data) setPosts(prev => prev.map(p => p.id === postId ? { ...p, upvotes: (data.upvotes as number) ?? 0, downvotes: (data.downvotes as number) ?? 0 } : p))
+        if (data) setPosts(prev => {
+          const updated = prev.map(p => p.id === postId ? { ...p, upvotes: (data.upvotes as number) ?? 0, downvotes: (data.downvotes as number) ?? 0 } : p)
+          updated.sort((a, b) => {
+            const hb = computeHotScore(b.upvotes, b.downvotes, b.createdAt)
+            const ha = computeHotScore(a.upvotes, a.downvotes, a.createdAt)
+            if (hb !== ha) return hb - ha
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          })
+          return updated
+        })
       } catch {}
     }
   }

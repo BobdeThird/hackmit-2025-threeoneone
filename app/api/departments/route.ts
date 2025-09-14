@@ -113,6 +113,21 @@ export async function GET(req: Request) {
     const fromLon = Number(searchParams.get('fromLon'))
     const fromLat = Number(searchParams.get('fromLat'))
     const includeRoute = searchParams.get('includeRoute') === 'true'
+    const listMode = (searchParams.get('list') || '').toLowerCase() === 'all'
+
+    // List all department locations for a city (used to plot department points)
+    if (listMode) {
+      if (!city) return NextResponse.json({ error: 'city required for list=all' }, { status: 400 })
+      const rows = await loadAllRows()
+      const rowsForCity = rows.filter((r) => r.city === city)
+      const items: DeptLoc[] = []
+      for (const r of rowsForCity) {
+        const coords = await geocode(r.address, r.city)
+        items.push({ ...r, coordinates: coords ?? undefined })
+      }
+      const viable = items.filter((i) => i.coordinates)
+      return NextResponse.json({ items: viable })
+    }
 
     if (!department) return NextResponse.json({ error: 'department required' }, { status: 400 })
 

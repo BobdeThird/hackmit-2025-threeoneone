@@ -1,9 +1,13 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import mapboxgl from "mapbox-gl";
-import { MapPin, Navigation } from "lucide-react";
+import { MapPin, Navigation, Brain } from "lucide-react";
+import { PostDetailView } from "@/components/ui/post-detail-view";
+import { ClaudePolicyModal } from "@/components/ui/claude-policy-modal";
+import type { Post } from "@/lib/types";
+import { supabase } from "@/lib/supabaseClient";
+import { getUserVoteForPost } from "@/lib/vote-persistence";
 
 type CaseItem = {
   id: string;
@@ -47,14 +51,164 @@ export default function GovPage() {
   const map = useRef<mapboxgl.Map | null>(null);
   const mapboxToken = (process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string) || "";
   const [items, setItems] = useState<CaseItem[]>([]);
-  const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
+  // Removed local selectedFeature UI; using full Post sidebar instead
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [deptPoints, setDeptPoints] = useState<{
+    city: 'NYC' | 'BOSTON' | 'SF'
+    department: string;
+    address: string;
+    coordinates: [number, number];
+  }[]>([]);
+  const [activeCity, setActiveCity] = useState<'BOSTON' | 'SF' | null>(null);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [loadingPost, setLoadingPost] = useState(false);
+  const [claudePolicyOpen, setClaudePolicyOpen] = useState(false);
+
+  // Types for department API items and properties
+  type DeptApiItem = {
+    city: 'NYC' | 'BOSTON' | 'SF' | string
+    department: string
+    address: string
+    coordinates: [number, number]
+  }
+  type DeptProperties = { city: 'NYC'|'BOSTON'|'SF'; department: string; address: string }
+
+  // Loader to fetch full post details (votes, comments) similar to /post/[id]
+  const loadPostDetails = React.useCallback(async (
+    reportId: string,
+    fallback?: Partial<CaseItem>
+  ) => {
+    setLoadingPost(true)
+    try {
+      const { data: report, error: repErr } = await supabase
+        .from('report_ranked')
+        .select('id, street_address, city, description, reported_time, images, upvotes, downvotes')
+        .eq('id', reportId)
+        .maybeSingle()
+      if (repErr) throw repErr
+
+      const comRes = await fetch(`/api/comments?report_id=${encodeURIComponent(reportId)}`, { cache: 'no-store' })
+      const comJson = await comRes.json()
+      if (!comRes.ok) throw new Error(comJson?.error || 'comments failed')
+      const flatComments = comJson.items
+
+      type CommentNode = {
+        id: string
+        author: string
+        content: string
+        createdAt: string
+        children?: CommentNode[]
+      }
+      const byId = new Map<string, CommentNode>()
+      const roots: CommentNode[] = []
+      for (const c of flatComments || []) {
+        byId.set(c.id as string, {
+          id: c.id as string,
+          author: (c.author_name as string) || 'Anonymous',
+          content: c.content as string,
+          createdAt: c.created_at as string,
+          children: [],
+        })
+      }
+      for (const c of flatComments || []) {
+        const node = byId.get(c.id as string)!
+        const parentId = c.parent_comment_id as string | null
+        if (parentId && byId.has(parentId)) {
+          byId.get(parentId)!.children!.push(node)
+        } else {
+          roots.push(node)
+        }
+      }
+
+      const mapped: Post = {
+        id: reportId,
+        description: (report?.description as string) || (fallback?.description || ''),
+        location: (report?.street_address as string) || (fallback?.address || ''),
+        city: (report?.city as string) || ((fallback?.city as string) || ''),
+        imageUrl: Array.isArray(report?.images) && (report?.images as string[]).length > 0
+          ? ((report?.images as string[])[0] as string)
+          : (Array.isArray(fallback?.images) && fallback!.images!.length > 0 ? fallback!.images![0] : undefined),
+        upvotes: (report?.upvotes as number) ?? 0,
+        downvotes: (report?.downvotes as number) ?? 0,
+        userVote: getUserVoteForPost(reportId),
+        createdAt: (report?.reported_time as string) || (fallback?.createdAt as string) || new Date().toISOString(),
+        comments: roots,
+      }
+      setSelectedPost(mapped)
+    } catch (err) {
+      console.error('load post details failed', err)
+      setSelectedPost(null)
+    } finally {
+      setLoadingPost(false)
+    }
+  }, [])
+
+  // City preset snap
+  const applyCityPreset = React.useCallback((key: 'BOSTON' | 'SF') => {
+    if (!map.current) return;
+    const m = map.current;
+    const preset = CITY_PRESETS[key];
+    setActiveCity(key);
+    m.fitBounds(preset.bounds as unknown as mapboxgl.LngLatBoundsLike, {
+      padding: { top: 40, right: 40, bottom: 40, left: 40 },
+      duration: 800,
+    });
+    const onMoveEnd = () => {
+      m.easeTo({
+        center: preset.camera.center,
+        zoom: preset.camera.zoom,
+        pitch: preset.camera.pitch,
+        bearing: preset.camera.bearing,
+        duration: 800,
+      });
+    };
+    if (m.isMoving()) {
+      m.once('moveend', onMoveEnd);
+    } else {
+      onMoveEnd();
+    }
+  }, [])
+
+  // Default map center
+  const DEFAULT_CENTER: [number, number] = [-98.5795, 39.8283];
+
+  type CityPreset = {
+    camera: { center: [number, number]; zoom: number; pitch: number; bearing: number };
+    bounds: [[number, number], [number, number]];
+  };
+
+  const CITY_PRESETS: Record<'BOSTON' | 'SF', CityPreset> = {
+    BOSTON: {
+      camera: {
+        center: [-71.10854197159861, 42.31579034590908],
+        zoom: 11.716079462000417,
+        pitch: 45.00000000000001,
+        bearing: -10,
+      },
+      bounds: [
+        [-71.36999850470605, 42.2354273032376],
+        [-70.90936796171755, 42.47620893272935],
+      ],
+    },
+    SF: {
+      camera: {
+        center: [-122.45347499644797, 37.755113984001724],
+        zoom: 11.939716839367692,
+        pitch: 45.00000000000001,
+        bearing: -10,
+      },
+      bounds: [
+        [-122.67738729048725, 37.68153677225834],
+        [-122.28290167423756, 37.9020490620171],
+      ],
+    },
+  };
 
   // Build GeoJSON from items with deterministic color per category
   const geojson: FeatureCollection = useMemo(() => {
     const features: Feature[] = items
-      .filter((i) => i.coordinates)
+      .filter((i) => i.coordinates && (i.city === "boston" || i.city === "sf"))
       .map((i) => ({
         type: "Feature",
         geometry: { type: "Point", coordinates: i.coordinates as [number, number] },
@@ -83,8 +237,8 @@ export default function GovPage() {
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/dark-v11",
-      center: [-122.4194, 37.7749],
-      zoom: 10,
+      center: DEFAULT_CENTER,
+      zoom: 3.5,
       pitch: 45,
       bearing: -10,
       antialias: true,
@@ -110,7 +264,7 @@ export default function GovPage() {
     });
 
     return () => map.current?.remove();
-  }, [mapboxToken]);
+  }, [mapboxToken, DEFAULT_CENTER]);
 
   // Fetch items via unified API once token present
   useEffect(() => {
@@ -126,6 +280,34 @@ export default function GovPage() {
       }
     })();
   }, [mapboxToken]);
+
+  // Load department points for all supported cities
+  useEffect(() => {
+    if (!mapboxToken) return;
+    (async () => {
+      try {
+        const cities: ('BOSTON'|'SF')[] = ['BOSTON','SF']
+        const results = await Promise.all(
+          cities.map(async (c) => {
+            try {
+              const res = await fetch(`/api/departments?city=${c}&list=all`)
+              const json = await res.json()
+              const items = (Array.isArray(json.items) ? json.items : []) as Partial<DeptApiItem>[]
+              return items
+                .filter((i): i is DeptApiItem => Array.isArray(i.coordinates) && i.coordinates!.length === 2 && typeof i.department === 'string' && typeof i.address === 'string' && typeof i.city === 'string')
+                .map((i) => ({ city: i.city as 'NYC'|'BOSTON'|'SF', department: i.department, address: i.address, coordinates: i.coordinates as [number, number] }))
+            } catch {
+              return []
+            }
+          })
+        )
+        setDeptPoints(results.flat())
+      } catch (e) {
+        console.error('Failed to load department points', e)
+        setDeptPoints([])
+      }
+    })()
+  }, [mapboxToken])
 
   // Add or update non-clustered source + single points layer whenever geojson changes
   useEffect(() => {
@@ -157,7 +339,82 @@ export default function GovPage() {
       m.on("click", "points", (e) => {
         const f = (e as mapboxgl.MapLayerMouseEvent).features?.[0] as unknown as Feature | undefined;
         if (!f) return;
-        setSelectedFeature(f as Feature);
+        // Load full post details (votes, comments) like /post/[id]
+        // Load full post details (votes, comments) like /post/[id]
+        const reportId = f.properties?.id as string | undefined
+        if (reportId) {
+          setLoadingPost(true)
+          ;(async () => {
+            try {
+              // 1) Fetch report from Supabase
+              const { data: report, error: repErr } = await supabase
+                .from('report_ranked')
+                .select('id, street_address, city, description, reported_time, images, upvotes, downvotes')
+                .eq('id', reportId)
+                .maybeSingle()
+              if (repErr) throw repErr
+
+              // 2) Fetch comments via API
+              const comRes = await fetch(`/api/comments?report_id=${encodeURIComponent(reportId)}`, { cache: 'no-store' })
+              const comJson = await comRes.json()
+              if (!comRes.ok) throw new Error(comJson?.error || 'comments failed')
+              const flatComments = comJson.items
+
+              // 3) Build nested comment tree
+              type CommentNode = {
+                id: string
+                author: string
+                content: string
+                createdAt: string
+                children?: CommentNode[]
+              }
+              const byId = new Map<string, CommentNode>()
+              const roots: CommentNode[] = []
+              for (const c of flatComments || []) {
+                byId.set(c.id as string, {
+                  id: c.id as string,
+                  author: (c.author_name as string) || 'Anonymous',
+                  content: c.content as string,
+                  createdAt: c.created_at as string,
+                  children: [],
+                })
+              }
+              for (const c of flatComments || []) {
+                const node = byId.get(c.id as string)!
+                const parentId = c.parent_comment_id as string | null
+                if (parentId && byId.has(parentId)) {
+                  byId.get(parentId)!.children!.push(node)
+                } else {
+                  roots.push(node)
+                }
+              }
+
+              // 4) Map to Post
+              const mapped: Post = {
+                id: reportId,
+                description: (report?.description as string) || '',
+                location: (report?.street_address as string) || (f.properties.address || ''),
+                city: (report?.city as string) || (f.properties.city as string),
+                imageUrl: Array.isArray(report?.images) && (report?.images as string[]).length > 0
+                  ? ((report?.images as string[])[0] as string)
+                  : (Array.isArray(f.properties.images) && f.properties.images.length > 0 ? f.properties.images[0] : undefined),
+                upvotes: (report?.upvotes as number) ?? 0,
+                downvotes: (report?.downvotes as number) ?? 0,
+                userVote: getUserVoteForPost(reportId),
+                createdAt: (report?.reported_time as string) || (f.properties.createdAt as string) || new Date().toISOString(),
+                comments: roots,
+              }
+              setSelectedPost(mapped)
+            } catch (err) {
+              console.error('load post details failed', err)
+              setSelectedPost(null)
+            } finally {
+              setLoadingPost(false)
+            }
+          })()
+        } else {
+          setSelectedPost(null)
+        }
         // Fetch nearest department route for this issue
         (async () => {
           try {
@@ -194,33 +451,148 @@ export default function GovPage() {
       m.on("mouseleave", "points", () => (m.getCanvas().style.cursor = ""));
     }
 
-    // Apply category filter on the single points layer
+    // Department points source/layer
+    const deptFc: GeoJSON.FeatureCollection<GeoJSON.Geometry, DeptProperties> = {
+      type: 'FeatureCollection',
+      features: deptPoints.map((p) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: p.coordinates },
+        properties: { city: p.city, department: p.department, address: p.address },
+      })) as unknown as GeoJSON.Feature<GeoJSON.Geometry, DeptProperties>[],
+    }
+    if (m.getSource('departments')) {
+      (m.getSource('departments') as mapboxgl.GeoJSONSource).setData(deptFc as unknown as GeoJSON.FeatureCollection)
+    } else {
+      m.addSource('departments', { type: 'geojson', data: deptFc as unknown as GeoJSON.FeatureCollection })
+      m.addLayer({
+        id: 'departments-layer',
+        type: 'symbol',
+        source: 'departments',
+        layout: {
+          'icon-image': 'town-hall-15',
+          'icon-size': 1.1,
+          'icon-allow-overlap': true,
+        },
+        paint: {},
+      })
+
+      // Click a department to animate route to nearest issue and show nearest issue details on left
+      m.on('click', 'departments-layer', async (e) => {
+        const f = (e as mapboxgl.MapLayerMouseEvent).features?.[0] as mapboxgl.MapboxGeoJSONFeature
+        if (!f) return
+        const dept = f.properties?.department as string
+        const deptCity = f.properties?.city as 'NYC' | 'BOSTON' | 'SF' | undefined
+        const geometry = f.geometry
+        const coords = (geometry && 'coordinates' in geometry ? (geometry as any).coordinates as [number, number] : undefined)
+        if (!dept || !Array.isArray(coords)) return
+
+        try {
+          const qs = new URLSearchParams({
+            department: dept,
+            fromLon: String(coords[0]),
+            fromLat: String(coords[1]),
+            includeRoute: 'true',
+            city: deptCity || '',
+          })
+          const res = await fetch(`/api/departments?${qs.toString()}`)
+          const json = await res.json()
+          const route = json?.route as GeoJSON.LineString | undefined
+          const nearest = json?.nearest as { coordinates?: [number, number] } | undefined
+          // Draw or update route line with simple fade animation
+          if (route) {
+            const routeFeature: GeoJSON.Feature<GeoJSON.LineString> = { type: 'Feature', geometry: route, properties: {} }
+            if (m.getSource('dept-route')) {
+              ;(m.getSource('dept-route') as mapboxgl.GeoJSONSource).setData(routeFeature as unknown as GeoJSON.Feature)
+            } else {
+              m.addSource('dept-route', { type: 'geojson', data: routeFeature as unknown as GeoJSON.Feature })
+              m.addLayer({
+                id: 'dept-route-line',
+                type: 'line',
+                source: 'dept-route',
+                paint: {
+                  'line-color': '#22d3ee',
+                  'line-width': 5,
+                  'line-opacity': 0.0,
+                },
+              })
+            }
+            // Animate opacity from 0 -> 0.9
+            let opacity = 0
+            const step = () => {
+              opacity = Math.min(0.9, opacity + 0.08)
+              m.setPaintProperty('dept-route-line', 'line-opacity', opacity)
+              if (opacity < 0.9) requestAnimationFrame(step)
+            }
+            requestAnimationFrame(step)
+          }
+
+          // If we have a nearest dept location, pick the closest issue point in this city and update left overlay
+          if (nearest && Array.isArray(nearest.coordinates)) {
+            const [dlon, dlat] = nearest.coordinates
+            let best: Feature | null = null
+            let bestDist = Number.POSITIVE_INFINITY
+            for (const feat of (geojson.features)) {
+              const [lon, lat] = feat.geometry.coordinates
+              const dx = (dlon - lon)
+              const dy = (dlat - lat)
+              const d = dx*dx + dy*dy
+              if (d < bestDist) { bestDist = d; best = feat }
+            }
+            if (best) {
+              const nearestId = best.properties?.id
+              if (nearestId) {
+                // trigger same loader as point click
+                const ev = { features: [{ properties: { id: nearestId }, geometry: { coordinates: best.geometry.coordinates } }] } as unknown as mapboxgl.MapLayerMouseEvent
+                m.fire('click', ev)
+              }
+            }
+          }
+        } catch (err) {
+          console.error('dept route error', err)
+        }
+      })
+      m.on('mouseenter', 'departments-layer', () => (m.getCanvas().style.cursor = 'pointer'))
+      m.on('mouseleave', 'departments-layer', () => (m.getCanvas().style.cursor = ''))
+    }
+
+    // Apply city + category filter on the single points layer
     if (selectedCategory) {
-      m.setFilter("points", ["==", ["get", "category"], selectedCategory] as unknown as mapboxgl.Expression);
-      // Fit to bounds
+      const catFilter = ["==", ["get", "category"], selectedCategory] as unknown as mapboxgl.Expression;
+      m.setFilter("points", catFilter as unknown as mapboxgl.Expression);
+      // Center to the mean of filtered points (category within selected city)
       const coords = geojson.features
         .filter((f) => f.properties.category === selectedCategory)
-        .map((f) => f.geometry.coordinates);
-      if (coords.length) {
-        let minX = coords[0][0], maxX = coords[0][0], minY = coords[0][1], maxY = coords[0][1];
-        for (const [x, y] of coords) {
-          minX = Math.min(minX, x);
-          maxX = Math.max(maxX, x);
-          minY = Math.min(minY, y);
-          maxY = Math.max(maxY, y);
-        }
-        m.fitBounds(
-          [
-            [minX, minY],
-            [maxX, maxY],
-          ],
-          { padding: 60, duration: 800 }
-        );
+        .map((f) => f.geometry.coordinates as [number, number]);
+      if (coords.length && !activeCity) {
+        const sum = coords.reduce((acc, [x, y]) => [acc[0] + x, acc[1] + y] as [number, number], [0, 0]);
+        const mean: [number, number] = [sum[0] / coords.length, sum[1] / coords.length];
+        m.easeTo({ center: mean, duration: 800 });
+      } else {
+        // no-op if none
       }
     } else {
       m.setFilter("points", undefined as unknown as mapboxgl.Expression);
+      // Center to the mean of all points
+      const coords = geojson.features.map((f) => f.geometry.coordinates as [number, number]);
+      if (coords.length && !activeCity) {
+        const sum = coords.reduce((acc, [x, y]) => [acc[0] + x, acc[1] + y] as [number, number], [0, 0]);
+        const mean: [number, number] = [sum[0] / coords.length, sum[1] / coords.length];
+        m.easeTo({ center: mean, duration: 800 });
+      } else {
+        // no-op if none
+      }
     }
-  }, [geojson, selectedCategory, mapReady]);
+  }, [geojson, selectedCategory, deptPoints, mapReady, activeCity]);
+  
+  // Snap to Boston by default when map is ready
+  useEffect(() => {
+    if (!mapReady || !map.current) return;
+    applyCityPreset('BOSTON')
+  }, [mapReady, applyCityPreset])
+
+  
+
+  // (moved earlier)
 
   if (!mapboxToken) {
     return (
@@ -240,8 +612,8 @@ export default function GovPage() {
     <div className="relative w-full h-screen bg-background overflow-hidden">
       <div ref={mapContainer} className="absolute inset-0 map-container" />
 
-      {/* Left overlay: category grouping */}
-      <div className="absolute top-4 left-4 w-80 map-overlay animate-slide-in">
+      {/* Left overlay: controls + category grouping */}
+      <div className="absolute top-4 left-4 w-80 map-overlay animate-slide-in z-10 pointer-events-auto">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
             <Navigation className="w-4 h-4 text-primary-foreground" />
@@ -250,6 +622,25 @@ export default function GovPage() {
             <h1 className="text-lg font-bold">Gov View</h1>
             <p className="text-xs text-muted-foreground">311 categories</p>
           </div>
+        </div>
+
+        
+
+        {/* City presets */}
+        <div className="flex gap-2 mb-3">
+          <button className="btn-glass px-3 py-1 text-xs" onClick={() => applyCityPreset('BOSTON')}>Boston</button>
+          <button className="btn-glass px-3 py-1 text-xs" onClick={() => applyCityPreset('SF')}>SF</button>
+        </div>
+
+        {/* Claude Policy Analysis */}
+        <div className="mb-4">
+          <button 
+            className="btn-glass w-full px-3 py-2 text-sm flex items-center gap-2 bg-gradient-to-r from-blue-500/10 to-purple-500/10 hover:from-blue-500/20 hover:to-purple-500/20 border-blue-500/20"
+            onClick={() => setClaudePolicyOpen(true)}
+          >
+            <Brain className="w-4 h-4" />
+            <span>Claude Policy Analyst</span>
+          </button>
         </div>
 
         {/* Simplified UI: remove extra quick actions */}
@@ -288,63 +679,19 @@ export default function GovPage() {
       </div>
 
       {/* Right overlay: details */}
-      <div className="absolute top-4 right-4 w-80 map-overlay animate-slide-in">
+      <div className="absolute top-4 right-4 w-96 map-overlay animate-slide-in z-10 pointer-events-auto bg-black/80">
         <div className="text-center mb-3">
           <div className="w-12 h-12 bg-gradient-to-br from-primary to-map-accent rounded-full mx-auto mb-2 flex items-center justify-center">
             <MapPin className="w-6 h-6 text-white" />
           </div>
           <p className="text-xs text-muted-foreground">Issue details</p>
         </div>
-
-        {selectedFeature ? (
-          <div className="space-y-3">
-            <div className="text-center">
-              <h3 className="text-sm font-semibold mb-1">
-                {selectedFeature.properties.category}
-              </h3>
-              <p className="text-xs text-muted-foreground mb-2 whitespace-pre-wrap">
-                {selectedFeature.properties.description || "No description"}
-              </p>
-              {selectedFeature.properties.address ? (
-                <p className="text-[11px] opacity-70">{selectedFeature.properties.address}</p>
-              ) : null}
-            </div>
-            {/* Images carousel (first 3) */}
-            {Array.isArray(selectedFeature.properties.images) && selectedFeature.properties.images.length > 0 ? (
-              <div className="grid grid-cols-3 gap-1 mb-2">
-                {selectedFeature.properties.images.slice(0,3).map((src: string, idx: number) => (
-                  <div key={idx} className="relative w-full h-16">
-                    <Image
-                      src={src.startsWith('public/') ? src.replace('public/','/') : src}
-                      alt="evidence"
-                      fill
-                      className="object-cover rounded"
-                      sizes="(max-width: 768px) 33vw, 80px"
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : null}
-            <div className="flex gap-2 text-xs">
-              <span className="btn-glass flex-1 px-3 py-2">{selectedFeature.properties.city.toUpperCase()}</span>
-              {selectedFeature.properties.status ? (
-                <span className="btn-glass flex-1 px-3 py-2">{selectedFeature.properties.status}</span>
-              ) : null}
-            </div>
-          </div>
+        {selectedPost ? (
+          <PostDetailView post={selectedPost} compact />
+        ) : loadingPost ? (
+          <div className="text-center text-xs text-muted-foreground">Loading...</div>
         ) : (
-          <div className="text-center space-y-2">
-            <p className="text-xs text-muted-foreground">Click any point to view details</p>
-            <div className="flex items-center justify-center gap-1">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="w-1 h-1 bg-map-accent rounded-full animate-glow-pulse"
-                  style={{ animationDelay: `${i * 0.5}s` }}
-                />
-              ))}
-            </div>
-          </div>
+          <div className="text-center text-xs text-muted-foreground">Click any point to view details</div>
         )}
       </div>
 
@@ -357,6 +704,12 @@ export default function GovPage() {
           </div>
         </div>
       </div>
+
+      {/* Claude Policy Modal */}
+      <ClaudePolicyModal 
+        open={claudePolicyOpen} 
+        onOpenChange={setClaudePolicyOpen} 
+      />
     </div>
   );
 }

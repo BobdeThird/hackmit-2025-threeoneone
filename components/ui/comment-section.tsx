@@ -11,9 +11,10 @@ interface CommentSectionProps {
   postId: string
   comments: Comment[]
   onAdded?: (comment: Comment) => void
+  compact?: boolean
 }
 
-export function CommentSection({ postId, comments, onAdded }: CommentSectionProps) {
+export function CommentSection({ postId, comments, onAdded, compact = false }: CommentSectionProps) {
   const [newComment, setNewComment] = useState("")
   const [localComments, setLocalComments] = useState(comments)
   const [submitting, setSubmitting] = useState(false)
@@ -48,7 +49,7 @@ export function CommentSection({ postId, comments, onAdded }: CommentSectionProp
 
   return (
     <div className="border-t border-border/50 bg-card/30">
-      <div className="px-4 py-3 space-y-4">
+      <div className={`${compact ? 'px-3 py-2 space-y-3' : 'px-4 py-3 space-y-4'}`}>
         {/* Existing comments */}
         {localComments.map((comment) => (
           <div key={comment.id} className="space-y-2">
@@ -56,7 +57,7 @@ export function CommentSection({ postId, comments, onAdded }: CommentSectionProp
               <span className="font-medium">{comment.author}</span>
               <span>{formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}</span>
             </div>
-            <p className="text-base text-card-foreground leading-5">{comment.content}</p>
+            <p className={`${compact ? 'text-sm leading-5' : 'text-base leading-5'} text-card-foreground`}>{comment.content}</p>
           </div>
         ))}
 
@@ -66,8 +67,8 @@ export function CommentSection({ postId, comments, onAdded }: CommentSectionProp
             placeholder="Add a comment..."
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
-            className="glass-card border-border/50 bg-input/50 text-foreground placeholder:text-muted-foreground resize-none"
-            rows={3}
+            className={`glass-card border-border/50 bg-input/50 text-foreground placeholder:text-muted-foreground resize-none ${compact ? 'text-sm' : ''}`}
+            rows={compact ? 2 : 3}
           />
           <div className="flex justify-end">
             <Button

@@ -156,12 +156,15 @@
 @layer components {
   .map-container {
     @apply w-full h-full;
+    z-index: 0;
   }
   .map-overlay {
     @apply rounded-xl p-3 border border-border/60 shadow-md;
     background: color-mix(in oklab, var(--color-background) 70%, transparent);
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
+    z-index: 10;
+    pointer-events: auto;
   }
   .btn-glass {
     @apply rounded-lg border border-border/60 hover:shadow transition;
