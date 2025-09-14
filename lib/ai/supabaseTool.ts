@@ -29,6 +29,7 @@ export async function runSupabaseQuery(input: SqlQueryInput) {
     offset = 0,
   } = input
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query: any = supabase.from(table).select(select)
   for (const w of where) {
     if (w.op === 'in' && Array.isArray(w.value)) {

@@ -16,7 +16,6 @@ export async function POST(req: Request) {
   const body = (await req.json()) as ClusterRequestBody
   const runId = body.runId
   const city = body.city
-  const input = body.input
   const enableCodeInterpreter = body.enableCodeInterpreter === true
   const enableWebSearch = body.enableWebSearch === true
 

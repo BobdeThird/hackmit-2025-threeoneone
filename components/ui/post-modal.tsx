@@ -29,21 +29,13 @@ function convertBase64ToUInt8Array(base64: string): Uint8Array {
 
   const binary_string = window.atob(base64);
   const len = binary_string.length;
-  const bytes = new Uint8Array(len);
+  const buffer = new ArrayBuffer(len);
+  const bytes = new Uint8Array(buffer);
   for (let i = 0; i < len; i++) {
     bytes[i] = binary_string.charCodeAt(i);
   }
 
   return bytes;
-}
-
-async function extractBase64FromBlob(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(String(reader.result));
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
 }
 
 // Validate if file appears to be a valid HEIC file
@@ -59,7 +51,7 @@ function isValidHeicFile(file: File): boolean {
 }
 
 // Fallback conversion method using base64 (adapted for heic-to)
-async function convertHEICWithBase64Fallback(file: File, heicTo: any): Promise<Blob> {
+async function convertHEICWithBase64Fallback(file: File, heicTo: (options: { blob: Blob; type: string; quality: number }) => Promise<Blob>): Promise<Blob> {
   console.log('Trying base64 fallback method...')
   
   return new Promise((resolve, reject) => {
@@ -69,7 +61,7 @@ async function convertHEICWithBase64Fallback(file: File, heicTo: any): Promise<B
       try {
         const base64Data = String(reader.result);
         const uint8Array = convertBase64ToUInt8Array(base64Data);
-        const blob = new Blob([uint8Array], { type: "image/heic" });
+        const blob = new Blob([uint8Array.buffer as ArrayBuffer], { type: "image/heic" });
         
         const convertedBlob = await heicTo({
           blob: blob,
@@ -139,8 +131,9 @@ export function PostModal({ isOpen, onClose, selectedCity, onPosted }: PostModal
                 type: "image/jpeg",
                 quality: 1 // Maximum quality (0-1)
               });
-            } catch (primaryError: any) {
-              console.warn('Primary conversion failed, trying base64 fallback:', primaryError?.message)
+            } catch (primaryError: unknown) {
+              const errorMessage = primaryError instanceof Error ? primaryError.message : 'Unknown error'
+              console.warn('Primary conversion failed, trying base64 fallback:', errorMessage)
               
               // Fallback method: Convert using base64 approach
               convertedBlob = await convertHEICWithBase64Fallback(originalFile, heicTo);
@@ -155,20 +148,21 @@ export function PostModal({ isOpen, onClose, selectedCity, onPosted }: PostModal
               originalSize: originalFile.size,
               convertedSize: processedFile.size
             })
-          } catch (conversionError: any) {
+          } catch (conversionError: unknown) {
+            const error = conversionError as { code?: number; message?: string }
             console.error('Failed to convert HEIC file:', {
               error: conversionError,
-              code: conversionError?.code,
-              message: conversionError?.message,
+              code: error?.code,
+              message: error?.message,
               fileName: originalFile.name,
               fileSize: originalFile.size,
               fileType: originalFile.type
             })
             
             // Provide specific error messages based on error code
-            if (conversionError?.code === 2) {
+            if (error?.code === 2) {
               console.error('LIBHEIF format error - the file may be corrupted or not a valid HEIC file')
-            } else if (conversionError?.message?.includes('File validation failed')) {
+            } else if (error?.message?.includes('File validation failed')) {
               console.error('HEIC validation failed - file format not recognized')
             }
             

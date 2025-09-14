@@ -1,9 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
 
-type StreamEvent = { event: string; data: any }
+type StreamEvent = { event: string; data: unknown }
 
 export default function PolicyPage() {
   const [running, setRunning] = useState(false)
@@ -32,7 +31,7 @@ export default function PolicyPage() {
       setRunning(false)
       es.close()
     })
-    es.addEventListener('error', (e) => {
+    es.addEventListener('error', (_e) => {
       setRunning(false)
       es.close()
     })
@@ -43,7 +42,7 @@ export default function PolicyPage() {
     if (!running && !runId && !sourceRef.current) {
       void startRun()
     }
-  }, [])
+  }, [running, runId, startRun])
 
   const grouped = useMemo(() => {
     const m = new Map<string, string[]>()

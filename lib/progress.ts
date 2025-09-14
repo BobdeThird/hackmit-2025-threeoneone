@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabaseClient'
-import type { EventLevel, RunRow, RunStatus } from './types'
+import type { EventLevel, RunStatus } from './types'
 
 export async function createRun(params: {
   city?: string
@@ -51,7 +51,7 @@ export async function appendEvent(params: {
       message: params.message ?? null,
       data: params.data ?? null,
     })
-  } catch (e) {
+  } catch (_e) {
     // non-fatal for dev
   }
 }
@@ -69,7 +69,7 @@ export async function addArtifact(params: {
       uri: params.uri ?? null,
       meta: params.meta ?? null,
     })
-  } catch (e) {
+  } catch (_e) {
     // non-fatal in dev
   }
 }
