@@ -1,0 +1,220 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import Image from "next/image"
+import { Button } from "@/components/ui/button"
+import { ArrowUp, ArrowDown, MessageCircle, Share } from "lucide-react"
+import { formatDistanceToNow } from "date-fns"
+import { CommentSection } from "@/components/ui/comment-section"
+import { ImagePreview } from "@/components/ui/image-preview"
+import { updateUserVote } from "@/lib/vote-persistence"
+// import { getClientId } from "@/lib/client-id"
+import type { Post } from "@/lib/types"
+
+interface PostDetailViewProps {
+  post: Post
+  onVote?: (postId: string, voteType: "up" | "down") => void // Made optional since we'll handle it internally
+}
+
+export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProps) {
+  const [showComments, setShowComments] = useState(true) // Default to showing comments on detail page
+  const [post, setPost] = useState(initialPost)
+  
+  // Apply stored votes when component mounts or post changes
+  useEffect(() => {
+    setPost(initialPost)
+  }, [initialPost])
+
+  const handleVote = async (voteType: "up" | "down") => {
+    // const clientId = getClientId()
+    const currentUserVote = post.userVote
+    let nextVote: "up" | "down" | null = voteType
+    if (currentUserVote === voteType) {
+      nextVote = null
+    }
+
+    // Update vote persistence
+    updateUserVote(post.id, nextVote)
+
+    // Optimistic UI
+    setPost(prev => {
+      let up = prev.upvotes
+      let down = prev.downvotes
+      if (nextVote === null) {
+        if (currentUserVote === 'up') up = Math.max(0, up - 1)
+        if (currentUserVote === 'down') down = Math.max(0, down - 1)
+      } else if (nextVote === 'up') {
+        up = up + 1
+        if (currentUserVote === 'down') down = Math.max(0, down - 1)
+      } else {
+        down = down + 1
+        if (currentUserVote === 'up') up = Math.max(0, up - 1)
+      }
+      return { ...prev, upvotes: up, downvotes: down, userVote: nextVote }
+    })
+    try {
+      const res = await fetch('/api/report/vote', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ report_id: post.id, action: nextVote === null ? 'remove' : nextVote, previous: currentUserVote })
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'vote failed')
+      setPost(prev => ({ ...prev, upvotes: (json.upvotes ?? prev.upvotes) as number, downvotes: (json.downvotes ?? prev.downvotes) as number }))
+    } catch {
+      // Revert on failure by reloading from server
+      try {
+        await fetch(`/api/reports?limit=1&status=&department=&city=${encodeURIComponent(post.city.toLowerCase())}`)
+        // ignore; in a real app re-fetch the single post
+      } catch {}
+    }
+    onVote?.(post.id, voteType)
+  }
+
+  const handleShare = async () => {
+    const postUrl = `${window.location.origin}/post/${post.id}`
+    
+    if (navigator.share) {
+      await navigator.share({
+        title: `ThreeOneOne - ${post.location}`,
+        text: post.description,
+        url: postUrl,
+      })
+    } else {
+      // Fallback to clipboard
+      await navigator.clipboard.writeText(postUrl)
+    }
+  }
+
+  return (
+    <div className="space-y-0">
+      <div className="twitter-card border-0 bg-black">
+        <div className="px-4 py-3">
+          <div className="w-full">
+            {/* Header info */}
+            <div className="flex items-center space-x-2 text-sm mb-3">
+              <span className="font-bold text-white text-lg">{post.location}</span>
+              <span className="text-muted-foreground">·</span>
+              <span className="text-muted-foreground">
+                {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+              </span>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-white text-lg leading-relaxed">{post.description}</p>
+            </div>
+
+            {/* Image if present */}
+            {post.imageUrl && (
+              <div className="mb-4">
+                <ImagePreview
+                  src={post.imageUrl.startsWith('public/') ? post.imageUrl.replace('public/', '/') : post.imageUrl}
+                  alt={`Image for ${post.location} - ${post.description.substring(0, 100)}...`}
+                >
+                  <div className="rounded-2xl overflow-hidden border border-border relative max-h-96 cursor-pointer hover:opacity-90 transition-opacity">
+                    <Image 
+                      src={post.imageUrl.startsWith('public/') ? post.imageUrl.replace('public/', '/') : post.imageUrl} 
+                      alt={`Image for ${post.location} - ${post.description.substring(0, 100)}...`}
+                      width={600}
+                      height={400}
+                      className="w-full max-h-96 object-cover"
+                      onError={() => {
+                        // Handle error with a fallback
+                      }}
+                    />
+                  </div>
+                </ImagePreview>
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex items-center justify-between w-full pt-3 mt-3 border-t border-[#2f3336]">
+              {/* Upvote */}
+              <div className="flex items-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleVote("up")}
+                  className={`twitter-button h-10 px-3 rounded-full ${
+                    post.userVote === "up"
+                      ? "text-green-500 hover:text-green-500 hover:bg-green-500/10"
+                      : "text-muted-foreground hover:text-green-500 hover:bg-green-500/10"
+                  }`}
+                >
+                  <ArrowUp className="h-5 w-5 mr-1" />
+                  <span className={`text-sm font-medium ${
+                    post.userVote === "up" ? "text-green-500" : "text-white"
+                  }`}>{post.upvotes}</span>
+                </Button>
+              </div>
+
+              {/* Downvote */}
+              <div className="flex items-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleVote("down")}
+                  className={`twitter-button h-10 px-3 rounded-full ${
+                    post.userVote === "down"
+                      ? "text-red-500 hover:text-red-500 hover:bg-red-500/10"
+                      : "text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
+                  }`}
+                >
+                  <ArrowDown className="h-5 w-5 mr-1" />
+                  <span className={`text-sm font-medium ${
+                    post.userVote === "down" ? "text-red-500" : "text-white"
+                  }`}>{post.downvotes}</span>
+                </Button>
+              </div>
+
+              {/* Comments */}
+              <div className="flex items-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowComments(!showComments)}
+                  className="twitter-button h-10 px-3 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
+                >
+                  <MessageCircle className="h-5 w-5 mr-1" />
+                  <span className="text-sm font-medium text-white">{post.comments.length}</span>
+                </Button>
+              </div>
+
+              {/* Share */}
+              <div className="flex items-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleShare}
+                  className="twitter-button h-10 px-3 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
+                >
+                  <Share className="h-5 w-5 mr-1" />
+                  <span className="text-sm font-medium text-white">Share</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Comments section */}
+      {showComments && (
+        <div className="border-t border-[#2f3336] bg-black">
+          <div className="p-4">
+            <CommentSection
+              postId={post.id}
+              comments={post.comments}
+              onAdded={(c) => {
+                setPost((prev) => ({
+                  ...prev,
+                  comments: [...prev.comments, c],
+                }))
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+

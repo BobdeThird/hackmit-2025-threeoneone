@@ -1,18 +1,20 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import mapboxgl from "mapbox-gl";
 import { MapPin, Navigation } from "lucide-react";
 
 type CaseItem = {
   id: string;
-  city: "sf" | "boston";
+  city: "sf" | "boston" | "nyc";
   category: string;
   description: string;
   address?: string;
   createdAt?: string;
   status?: string;
   coordinates?: [number, number];
+  images?: string[];
 };
 
 type Feature = {
@@ -110,17 +112,14 @@ export default function GovPage() {
     return () => map.current?.remove();
   }, [mapboxToken]);
 
-  // Fetch ~1k 311 items once token present (so we can render immediately after)
+  // Fetch items via unified API once token present
   useEffect(() => {
     if (!mapboxToken) return;
     (async () => {
       try {
-        const [sfRes, bosRes] = await Promise.all([
-          fetch("/api/311/sf?limit=1000"),
-          fetch("/api/311/boston?status=open&limit=1000"),
-        ]);
-        const [sf, bos] = await Promise.all([sfRes.json(), bosRes.json()]);
-        const combined: CaseItem[] = [...(sf.items || []), ...(bos.items || [])];
+        const res = await fetch("/api/reports?limit=10000");
+        const json = await res.json();
+        const combined: CaseItem[] = json.items || [];
         setItems(combined);
       } catch (e) {
         console.error("Failed to load 311 data", e);
@@ -159,6 +158,37 @@ export default function GovPage() {
         const f = (e as mapboxgl.MapLayerMouseEvent).features?.[0] as unknown as Feature | undefined;
         if (!f) return;
         setSelectedFeature(f as Feature);
+        // Fetch nearest department route for this issue
+        (async () => {
+          try {
+            const department = f.properties.category
+            const [lon, lat] = f.geometry.coordinates
+            const qs = new URLSearchParams({
+              department,
+              fromLon: String(lon),
+              fromLat: String(lat),
+              includeRoute: 'true',
+            })
+            const res = await fetch(`/api/departments?${qs.toString()}`)
+            const json = await res.json()
+            // Draw route if exists
+            if (json?.route && m.getSource('route')) {
+              const feature: GeoJSON.Feature<GeoJSON.LineString> = { type: 'Feature', geometry: json.route as GeoJSON.LineString, properties: {} }
+              ;(m.getSource('route') as mapboxgl.GeoJSONSource).setData(feature as unknown as GeoJSON.FeatureCollection)
+            } else if (json?.route) {
+              const feature: GeoJSON.Feature<GeoJSON.LineString> = { type: 'Feature', geometry: json.route as GeoJSON.LineString, properties: {} }
+              m.addSource('route', { type: 'geojson', data: feature as unknown as GeoJSON.FeatureCollection })
+              m.addLayer({
+                id: 'route-line',
+                type: 'line',
+                source: 'route',
+                paint: { 'line-color': '#38bdf8', 'line-width': 4, 'line-opacity': 0.85 },
+              })
+            }
+          } catch (err) {
+            console.error('route fetch failed', err)
+          }
+        })()
       });
       m.on("mouseenter", "points", () => (m.getCanvas().style.cursor = "pointer"));
       m.on("mouseleave", "points", () => (m.getCanvas().style.cursor = ""));
@@ -258,7 +288,7 @@ export default function GovPage() {
       </div>
 
       {/* Right overlay: details */}
-      <div className="absolute top-4 right-4 w-72 map-overlay animate-slide-in">
+      <div className="absolute top-4 right-4 w-80 map-overlay animate-slide-in">
         <div className="text-center mb-3">
           <div className="w-12 h-12 bg-gradient-to-br from-primary to-map-accent rounded-full mx-auto mb-2 flex items-center justify-center">
             <MapPin className="w-6 h-6 text-white" />
@@ -279,6 +309,22 @@ export default function GovPage() {
                 <p className="text-[11px] opacity-70">{selectedFeature.properties.address}</p>
               ) : null}
             </div>
+            {/* Images carousel (first 3) */}
+            {Array.isArray(selectedFeature.properties.images) && selectedFeature.properties.images.length > 0 ? (
+              <div className="grid grid-cols-3 gap-1 mb-2">
+                {selectedFeature.properties.images.slice(0,3).map((src: string, idx: number) => (
+                  <div key={idx} className="relative w-full h-16">
+                    <Image
+                      src={src.startsWith('public/') ? src.replace('public/','/') : src}
+                      alt="evidence"
+                      fill
+                      className="object-cover rounded"
+                      sizes="(max-width: 768px) 33vw, 80px"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : null}
             <div className="flex gap-2 text-xs">
               <span className="btn-glass flex-1 px-3 py-2">{selectedFeature.properties.city.toUpperCase()}</span>
               {selectedFeature.properties.status ? (
