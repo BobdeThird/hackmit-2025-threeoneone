@@ -3,14 +3,16 @@ import type { Post } from "./types"
 export const mockPosts: Post[] = [
   {
     id: "1",
+    title: "Large pothole on Market Street",
     description:
       "There's a dangerous pothole near the intersection of Market and 5th Street that's been growing larger over the past few weeks. It's causing damage to vehicles and creating a safety hazard for cyclists.",
     location: "Market St & 5th St",
     city: "SF",
-    imageUrl: "public/pothole-on-city-street.jpg",
+    imageUrl: "/pothole-on-city-street.jpg",
     upvotes: 24,
     downvotes: 2,
     userVote: null,
+    issueType: "Pothole",
     createdAt: "2024-01-15T10:30:00Z",
     comments: [
       {
@@ -29,6 +31,7 @@ export const mockPosts: Post[] = [
   },
   {
     id: "2",
+    title: "Broken streetlight creating safety concern",
     description:
       "The streetlight at the corner of Mission and 3rd has been out for over a week. This area gets pretty dark at night and it's making residents feel unsafe.",
     location: "Mission St & 3rd St",
@@ -36,6 +39,7 @@ export const mockPosts: Post[] = [
     upvotes: 18,
     downvotes: 0,
     userVote: "up",
+    issueType: "Broken Streetlight",
     createdAt: "2024-01-14T08:15:00Z",
     comments: [
       {
@@ -48,19 +52,22 @@ export const mockPosts: Post[] = [
   },
   {
     id: "3",
+    title: "Graffiti on historic building",
     description:
       "Someone tagged the side of the old post office building on Union Square. This is a historic landmark and should be cleaned up quickly.",
     location: "Union Square",
     city: "SF",
-    imageUrl: "public/graffiti-on-historic-building.jpg",
+    imageUrl: "/graffiti-on-historic-building.jpg",
     upvotes: 12,
     downvotes: 5,
     userVote: null,
+    issueType: "Graffiti",
     createdAt: "2024-01-13T15:45:00Z",
     comments: [],
   },
   {
     id: "4",
+    title: "Subway platform flooding during rain",
     description:
       "The 14th Street Union Square station has been flooding every time it rains heavily. Water pools near the platform edge, creating slippery conditions.",
     location: "14th St Union Square Station",
@@ -68,6 +75,7 @@ export const mockPosts: Post[] = [
     upvotes: 31,
     downvotes: 1,
     userVote: null,
+    issueType: "Water Leak",
     createdAt: "2024-01-12T09:20:00Z",
     comments: [
       {
@@ -86,6 +94,7 @@ export const mockPosts: Post[] = [
   },
   {
     id: "5",
+    title: "Broken traffic signal causing delays",
     description:
       "The traffic light at Broadway and 42nd Street has been stuck on red for the cross street, causing major traffic backups during rush hour.",
     location: "Broadway & 42nd St",
@@ -93,6 +102,7 @@ export const mockPosts: Post[] = [
     upvotes: 45,
     downvotes: 3,
     userVote: "up",
+    issueType: "Traffic Signal Issue",
     createdAt: "2024-01-11T07:30:00Z",
     comments: [
       {
@@ -105,6 +115,7 @@ export const mockPosts: Post[] = [
   },
   {
     id: "6",
+    title: "Sidewalk cracked and uneven",
     description:
       "The sidewalk on Commonwealth Avenue near the Public Garden has several large cracks and uneven sections that are difficult for wheelchair users and people with mobility issues.",
     location: "Commonwealth Ave near Public Garden",
@@ -112,6 +123,7 @@ export const mockPosts: Post[] = [
     upvotes: 22,
     downvotes: 1,
     userVote: null,
+    issueType: "Sidewalk Repair",
     createdAt: "2024-01-10T14:20:00Z",
     comments: [
       {
@@ -130,14 +142,16 @@ export const mockPosts: Post[] = [
   },
   {
     id: "7",
+    title: "Overflowing trash bins in Boston Common",
     description:
       "The trash bins near the pond in Boston Common have been overflowing for days. It's attracting pests and creating an unpleasant smell for visitors.",
     location: "Boston Common - Near Pond",
     city: "Boston",
-    imageUrl: "public/overflowing-trash-bins-in-park.jpg",
+    imageUrl: "/overflowing-trash-bins-in-park.jpg",
     upvotes: 28,
     downvotes: 2,
     userVote: null,
+    issueType: "Trash/Litter",
     createdAt: "2024-01-09T11:45:00Z",
     comments: [
       {

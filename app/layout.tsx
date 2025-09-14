@@ -22,6 +22,10 @@ export const metadata: Metadata = {
   title: "ThreeOneOne - City Issues Platform",
   description: "Report and discuss city issues with your community",
   generator: "v0.app",
+  icons: {
+    icon: '/public/311.svg',
+    apple: '/public/311.svg',
+  },
 }
 
 export default function RootLayout({
