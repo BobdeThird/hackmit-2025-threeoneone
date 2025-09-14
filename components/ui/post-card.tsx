@@ -105,7 +105,7 @@ export function PostCard({ post, onVote }: PostCardProps) {
                 <ArrowUp className="h-4 w-4" />
               </Button>
               <span className={`text-sm font-medium ml-1 ${
-                post.userVote === "up" ? "text-green-500" : "text-white"
+                post.userVote === "up" ? "text-green-500" : "text-muted-foreground"
               }`}>{post.upvotes}</span>
             </div>
 
@@ -127,7 +127,7 @@ export function PostCard({ post, onVote }: PostCardProps) {
                 <ArrowDown className="h-4 w-4" />
               </Button>
               <span className={`text-sm font-medium ml-1 ${
-                post.userVote === "down" ? "text-red-500" : "text-white"
+                post.userVote === "down" ? "text-red-500" : "text-muted-foreground"
               }`}>{post.downvotes}</span>
             </div>
 
@@ -144,7 +144,7 @@ export function PostCard({ post, onVote }: PostCardProps) {
               >
                 <MessageCircle className="h-4 w-4" />
               </Button>
-              <span className="text-sm font-medium text-white ml-1">{commentCount}</span>
+              <span className="text-sm font-medium text-muted-foreground ml-1">{commentCount}</span>
             </div>
 
             {/* Share */}
