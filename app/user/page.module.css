@@ -1,0 +1,35 @@
+/* Scoped styles for user page components only */
+.userPage {
+  /* Main container class */
+  background-color: #000000;
+  color: #ffffff;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.userHeader {
+  border-bottom: 1px solid #2f3336;
+  background: #000000;
+}
+
+.userTitle {
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.twitterCard {
+  background: #000000;
+  border-bottom: 1px solid #2f3336;
+}
+
+.twitterButton {
+  transition: all 0.2s ease-in-out;
+}
+
+.twitterButton:hover {
+  background: rgba(29, 155, 240, 0.1);
+}
+
+.twitterButton:active {
+  transform: scale(0.95);
+}
