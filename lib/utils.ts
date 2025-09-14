@@ -5,21 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-/**
- * Wilson score lower bound for a Bernoulli parameter (success probability).
- * Returns a conservative estimate of positive ratio given total votes.
- */
-function wilsonLowerBound(positive: number, total: number, z: number = 1.2815515655446004): number {
-  const pos = Math.max(0, positive)
-  const n = Math.max(0, total)
-  if (n === 0) return 0
-  const pHat = pos / n
-  const z2 = z * z
-  const denom = 1 + z2 / n
-  const center = (pHat + (z2 / (2 * n))) / denom
-  const margin = (z * Math.sqrt((pHat * (1 - pHat) + (z2 / (4 * n))) / n)) / denom
-  return Math.max(0, center - margin)
-}
 
 /**
  * Compute an exponential time-decay factor using a half-life model.
@@ -49,16 +34,23 @@ export function computeHotScore(
 ): number {
   const up = Math.max(0, upvotes | 0)
   const down = Math.max(0, downvotes | 0)
-  const total = up + down
 
   const halfLifeHours = options?.halfLifeHours ?? 8
 
-  const quality = wilsonLowerBound(up, total)
-  const magnitude = Math.log10(1 + total)
-  const net = up - down
-  const netComponent = Math.atan(net / 5) / (Math.PI / 2) // [-1, 1]
+  // Upvotes dominate everything - recency is almost irrelevant
   const recency = timeDecayFactor(createdAt, halfLifeHours)
-
-  const base = quality + 0.35 * magnitude + 0.25 * netComponent
-  return base * recency
+  
+  // Each upvote is worth 100 points - massive dominance
+  const upvoteScore = up * 100
+  
+  // Downvotes reduce score but don't eliminate upvote advantage
+  const downvotePenalty = down * 20
+  
+  const base = upvoteScore - downvotePenalty
+  
+  // If post has upvotes, recency barely matters (stays 90%+ relevant forever)
+  // If no upvotes, recency still matters but capped very low
+  const finalRecency = up > 0 ? Math.max(0.9, recency) : Math.min(0.5, recency)
+  
+  return base + finalRecency
 }

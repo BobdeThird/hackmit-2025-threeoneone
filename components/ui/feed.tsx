@@ -26,14 +26,43 @@ export function Feed({ selectedCity }: FeedProps) {
     try {
       // Map UI city to DB enum
       const dbCity = selectedCity === 'SF' ? 'SF' : selectedCity === 'NYC' ? 'NYC' : 'BOSTON'
-      const { data, error } = await supabase
+      
+      // First, get posts with upvotes > 0 ordered by upvotes desc
+      const { data: upvotedData, error: upvotedError } = await supabase
         .from('report_ranked')
         .select('id, street_address, description, reported_time, images, city, upvotes, downvotes')
         .eq('city', dbCity)
+        .gt('upvotes', 0)
+        .order('upvotes', { ascending: false })
         .order('reported_time', { ascending: false })
-        .range(currentOffset, currentOffset + POSTS_PER_PAGE - 1)
+        .limit(POSTS_PER_PAGE)
       
-      if (error) throw error
+      if (upvotedError) throw upvotedError
+      
+      let data = upvotedData || []
+      
+      // If we don't have enough posts with upvotes, fill with recent posts
+      if (data.length < POSTS_PER_PAGE) {
+        const needed = POSTS_PER_PAGE - data.length
+        const usedIds = data.map(p => p.id)
+        
+        let recentQuery = supabase
+          .from('report_ranked')
+          .select('id, street_address, description, reported_time, images, city, upvotes, downvotes')
+          .eq('city', dbCity)
+          .order('reported_time', { ascending: false })
+          .limit(needed)
+        
+        // Only exclude used IDs if we have any
+        if (usedIds.length > 0) {
+          recentQuery = recentQuery.not('id', 'in', `(${usedIds.join(',')})`)
+        }
+        
+        const { data: recentData, error: recentError } = await recentQuery
+        
+        if (recentError) throw recentError
+        data = [...data, ...(recentData || [])]
+      }
 
       let mapped: Post[] = (data || []).map((r) => ({
         id: r.id as string,
@@ -71,6 +100,14 @@ export function Feed({ selectedCity }: FeedProps) {
           }
         }
       } catch {}
+
+      // Sort by hotness with recency tiebreaker
+      mapped.sort((a, b) => {
+        const hb = computeHotScore(b.upvotes, b.downvotes, b.createdAt)
+        const ha = computeHotScore(a.upvotes, a.downvotes, a.createdAt)
+        if (hb !== ha) return hb - ha
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      })
 
       if (isInitial) {
         setPosts(mapped)
