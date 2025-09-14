@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     if (signErr) return NextResponse.json({ error: signErr.message }, { status: 500 })
 
     return NextResponse.json({ path: upload.path, url: signed.signedUrl })
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'failed' }, { status: 500 })
   }
 }

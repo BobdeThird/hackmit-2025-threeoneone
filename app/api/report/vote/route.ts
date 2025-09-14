@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 })
 
     return NextResponse.json({ upvotes: nextUp, downvotes: nextDown })
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'failed' }, { status: 500 })
   }
 }

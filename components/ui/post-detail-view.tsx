@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { ArrowUp, ArrowDown, MessageCircle, Share } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { CommentSection } from "@/components/ui/comment-section"
-import { getClientId } from "@/lib/client-id"
+// import { getClientId } from "@/lib/client-id"
 import type { Post } from "@/lib/types"
 
 interface PostDetailViewProps {
@@ -25,7 +25,7 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
   }, [initialPost])
 
   const handleVote = async (voteType: "up" | "down") => {
-    const clientId = getClientId()
+    // const clientId = getClientId()
     const currentUserVote = post.userVote
     let nextVote: "up" | "down" | null = voteType
     if (currentUserVote === voteType) {
@@ -56,7 +56,7 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
       const json = await res.json()
       if (!res.ok) throw new Error(json?.error || 'vote failed')
       setPost(prev => ({ ...prev, upvotes: (json.upvotes ?? prev.upvotes) as number, downvotes: (json.downvotes ?? prev.downvotes) as number }))
-    } catch (e) {
+    } catch {
       // Revert on failure by reloading from server
       try {
         const resp = await fetch(`/api/reports?limit=1&status=&department=&city=${encodeURIComponent(post.city.toLowerCase())}`)

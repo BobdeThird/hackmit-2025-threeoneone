@@ -35,7 +35,30 @@ export async function GET(request: Request) {
 
   // Fetch in chunks to bypass 1k limit
   const MAX_CHUNK = 1000
-  const itemsAcc: any[] = []
+  type ReportRow = {
+    id: string
+    city: 'SF' | 'BOSTON' | 'NYC' | string
+    street_address: string | null
+    latitude: number | null
+    longitude: number | null
+    reported_time: string
+    description: string | null
+    status: string | null
+    department: string | null
+    images: unknown
+  }
+  type ApiItem = {
+    id: string
+    city: 'sf' | 'boston' | 'nyc'
+    category: string
+    description: string
+    address: string
+    createdAt: string
+    status: string | null
+    coordinates?: [number, number]
+    images: string[]
+  }
+  const itemsAcc: ApiItem[] = []
   let offset = 0
   while (itemsAcc.length < limit) {
     const from = offset
@@ -50,26 +73,26 @@ export async function GET(request: Request) {
     if (department) q = q.eq('department', department)
     const { data, error } = await q
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    const batch = (data || [])
+    const batch = (data || []) as ReportRow[]
     itemsAcc.push(
       ...batch.map((r) => ({
-        id: r.id as string,
+        id: r.id,
         city:
           (r.city === 'SF'
             ? 'sf'
             : r.city === 'BOSTON'
             ? 'boston'
             : 'nyc') as 'sf' | 'boston' | 'nyc',
-        category: (r.department as string) || 'Unknown',
-        description: (r.description as string) || '',
-        address: r.street_address as string,
-        createdAt: r.reported_time as string,
-        status: (r.status as string) || null,
+        category: r.department || 'Unknown',
+        description: r.description || '',
+        address: (r.street_address || '') as string,
+        createdAt: r.reported_time,
+        status: r.status || null,
         coordinates:
           typeof r.longitude === 'number' && typeof r.latitude === 'number'
-            ? ([r.longitude as number, r.latitude as number] as [number, number])
+            ? ([r.longitude, r.latitude] as [number, number])
             : undefined,
-        images: (Array.isArray(r.images) ? (r.images as string[]) : [])
+        images: Array.isArray(r.images) ? (r.images as string[]) : []
       }))
     )
     if (batch.length < MAX_CHUNK) break

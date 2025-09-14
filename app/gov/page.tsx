@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import mapboxgl from "mapbox-gl";
 import { MapPin, Navigation } from "lucide-react";
 
@@ -312,7 +313,15 @@ export default function GovPage() {
             {Array.isArray(selectedFeature.properties.images) && selectedFeature.properties.images.length > 0 ? (
               <div className="grid grid-cols-3 gap-1 mb-2">
                 {selectedFeature.properties.images.slice(0,3).map((src: string, idx: number) => (
-                  <img key={idx} src={src.startsWith('public/') ? src.replace('public/','/') : src} alt="evidence" className="w-full h-16 object-cover rounded" />
+                  <div key={idx} className="relative w-full h-16">
+                    <Image
+                      src={src.startsWith('public/') ? src.replace('public/','/') : src}
+                      alt="evidence"
+                      fill
+                      className="object-cover rounded"
+                      sizes="(max-width: 768px) 33vw, 80px"
+                    />
+                  </div>
                 ))}
               </div>
             ) : null}

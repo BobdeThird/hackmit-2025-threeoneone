@@ -32,7 +32,8 @@ async function countByIds(ids: string[]) {
 
   const counts: Record<string, number> = {}
   for (const id of ids) counts[id] = 0
-  for (const row of (data as any[]) || []) {
+  const rows = ((data ?? []) as { report_id: string | number | null }[])
+  for (const row of rows) {
     const rid = String(row.report_id)
     counts[rid] = (counts[rid] ?? 0) + 1
   }

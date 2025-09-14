@@ -7,7 +7,7 @@ import { ArrowLeft } from "lucide-react"
 import { PostDetailView } from "@/components/ui/post-detail-view"
 import type { Post } from "@/lib/types"
 import { supabase } from "@/lib/supabaseClient"
-import { getClientId } from "@/lib/client-id"
+// import { getClientId } from "@/lib/client-id"
 
 export default function PostPage() {
   const params = useParams()
