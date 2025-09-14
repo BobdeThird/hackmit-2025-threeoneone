@@ -3,6 +3,8 @@
   /* Main container class */
   background-color: #000000;
   color: #ffffff;
+  max-width: 500px;
+  margin: 0 auto;
 }
 
 .userHeader {

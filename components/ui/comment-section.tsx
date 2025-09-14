@@ -31,7 +31,7 @@ export function CommentSection({ postId, comments }: CommentSectionProps) {
 
   return (
     <div className="border-t border-border/50 bg-card/30">
-      <div className="p-4 space-y-4">
+      <div className="px-4 py-3 space-y-4">
         {/* Existing comments */}
         {localComments.map((comment) => (
           <div key={comment.id} className="space-y-2">
@@ -39,7 +39,7 @@ export function CommentSection({ postId, comments }: CommentSectionProps) {
               <span className="font-medium">{comment.author}</span>
               <span>{formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}</span>
             </div>
-            <p className="text-sm text-card-foreground leading-relaxed">{comment.content}</p>
+            <p className="text-base text-card-foreground leading-5">{comment.content}</p>
           </div>
         ))}
 

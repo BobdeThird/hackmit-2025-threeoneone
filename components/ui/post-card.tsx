@@ -35,7 +35,7 @@ export function PostCard({ post, onVote }: PostCardProps) {
       <div className="px-4 py-3">
         <div className="w-full">
           {/* Header info */}
-          <div className="flex items-center space-x-2 text-sm mb-2">
+          <div className="flex items-center space-x-2 text-sm">
             <span className="font-bold text-white">{post.location}</span>
             <span className="text-muted-foreground">·</span>
             <span className="text-muted-foreground">
@@ -43,14 +43,14 @@ export function PostCard({ post, onVote }: PostCardProps) {
             </span>
           </div>
 
-          <div className="mb-2">
-            <h3 className="text-white text-sm leading-4 font-normal">{post.title}</h3>
-            <p className="text-white text-sm leading-4 mt-1">{post.description}</p>
+          <div className="mb-3">
+            <h3 className="text-white text-base font-normal">{post.title}</h3>
+            <p className="text-white text-base">{post.description}</p>
           </div>
 
           {/* Image if present */}
           {post.imageUrl && (
-            <div className="mb-2 rounded-2xl overflow-hidden border border-border">
+            <div className="mb-3 rounded-2xl overflow-hidden border border-border">
               <img 
                 src={post.imageUrl.startsWith('public/') ? post.imageUrl.replace('public/', '/') : post.imageUrl} 
                 alt={post.title} 

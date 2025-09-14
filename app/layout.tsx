@@ -1,16 +1,18 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Inter, Geist_Mono } from "next/font/google"
 import { Suspense } from "react"
 import "./globals.css"
 import "mapbox-gl/dist/mapbox-gl.css"
 
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Using Inter as a close alternative to Chirp with Twitter's font fallbacks
+const chirpFont = Inter({
+  variable: "--font-chirp",
   subsets: ["latin"],
+  display: "swap",
 });
 
+// Keep mono font for code elements
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
@@ -29,7 +31,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`font-sans ${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`font-chirp ${chirpFont.variable} ${geistMono.variable} antialiased`}>
         <Suspense fallback={null}>{children}</Suspense>
       </body>
     </html>
