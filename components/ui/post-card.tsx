@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowUp, ArrowDown, MessageCircle, Share } from "lucide-react"
@@ -63,13 +64,14 @@ export function PostCard({ post, onVote }: PostCardProps) {
 
           {/* Image if present */}
           {post.imageUrl && (
-            <div className="mb-3 rounded-2xl overflow-hidden border border-border">
-              <img 
+            <div className="mb-3 rounded-2xl overflow-hidden border border-border relative h-64">
+              <Image 
                 src={post.imageUrl.startsWith('public/') ? post.imageUrl.replace('public/', '/') : post.imageUrl} 
-                className="w-full h-64 object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.src = '/placeholder.svg';
+                alt={`Image for ${post.location} - ${post.description.substring(0, 100)}...`}
+                fill
+                className="object-cover"
+                onError={() => {
+                  // Handle error with a fallback
                 }}
               />
             </div>

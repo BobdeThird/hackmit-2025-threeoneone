@@ -53,7 +53,7 @@ export default function PostPage() {
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <h1 className="text-2xl font-bold text-white mb-2">Post not found</h1>
-              <p className="text-muted-foreground">The post you're looking for doesn't exist.</p>
+              <p className="text-muted-foreground">The post you&apos;re looking for doesn&apos;t exist.</p>
             </div>
           </div>
         </div>

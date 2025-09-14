@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowUp, ArrowDown, MessageCircle, Share } from "lucide-react"
@@ -44,7 +45,7 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
 
   const handleVote = (voteType: "up" | "down") => {
     // Handle the vote change and persistence
-    const newUserVote = handleVoteChange(post.id, voteType, post.userVote)
+    handleVoteChange(post.id, voteType, post.userVote)
     
     // Recalculate vote data based on the original mock data and new user vote
     const originalPost = mockPosts.find(p => p.id === post.id)
@@ -105,13 +106,15 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
 
             {/* Image if present */}
             {post.imageUrl && (
-              <div className="mb-4 rounded-2xl overflow-hidden border border-border">
-                <img 
+              <div className="mb-4 rounded-2xl overflow-hidden border border-border relative max-h-96">
+                <Image 
                   src={post.imageUrl.startsWith('public/') ? post.imageUrl.replace('public/', '/') : post.imageUrl} 
+                  alt={`Image for ${post.location} - ${post.description.substring(0, 100)}...`}
+                  width={600}
+                  height={400}
                   className="w-full max-h-96 object-cover"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = '/placeholder.svg';
+                  onError={() => {
+                    // Handle error with a fallback
                   }}
                 />
               </div>

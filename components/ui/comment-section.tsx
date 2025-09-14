@@ -11,7 +11,7 @@ interface CommentSectionProps {
   comments: Comment[]
 }
 
-export function CommentSection({ postId, comments }: CommentSectionProps) {
+export function CommentSection({ comments }: CommentSectionProps) {
   const [newComment, setNewComment] = useState("")
   const [localComments, setLocalComments] = useState(comments)
 

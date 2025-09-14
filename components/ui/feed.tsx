@@ -47,7 +47,7 @@ export function Feed({ selectedCity }: FeedProps) {
       prevPosts.map((post) => {
         if (post.id === postId) {
           // Handle the vote change and persistence
-          const newUserVote = handleVoteChange(postId, voteType, post.userVote)
+          handleVoteChange(postId, voteType, post.userVote)
           
           // Recalculate vote data based on the original mock data and new user vote
           const originalPost = mockPosts.find(p => p.id === postId)

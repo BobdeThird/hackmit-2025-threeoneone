@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
+import Image from "next/image"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -96,11 +97,12 @@ export function PostModal({ isOpen, onClose, selectedCity }: PostModalProps) {
           <div className="space-y-2">
             <Label className="text-foreground">Photo (Optional)</Label>
             {formData.image ? (
-              <div className="relative">
-                <img
-                  src={URL.createObjectURL(formData.image) || "/placeholder.svg"}
+              <div className="relative h-32">
+                <Image
+                  src={URL.createObjectURL(formData.image)}
                   alt="Upload preview"
-                  className="w-full h-32 object-cover rounded-lg"
+                  fill
+                  className="object-cover rounded-lg"
                 />
               </div>
             ) : (
