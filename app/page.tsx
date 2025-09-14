@@ -3,8 +3,25 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 
+interface SummaryResponse {
+  street_address: string;
+  coordinates: [number, number];
+  images?: string[];
+  reported_time: string;
+  description: string;
+  Department: string;
+  'Estimated Time to Resolve': number;
+  Summary: string;
+}
+
+interface ErrorResponse {
+  error: string;
+}
+
+type GenerationState = SummaryResponse | ErrorResponse | undefined;
+
 export default function Page() {
-  const [generation, setGeneration] = useState<any>();
+  const [generation, setGeneration] = useState<GenerationState>();
   const [isLoading, setIsLoading] = useState(false);
 
   return (
