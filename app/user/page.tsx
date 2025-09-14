@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Feed } from "@/components/ui/feed"
-import { CityFilter } from "@/components/ui/city-filter"
+import { NavigationHeader } from "@/components/ui/navigation-header"
 import { PostModal } from "@/components/ui/post-modal"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
@@ -15,15 +15,14 @@ export default function HomePage() {
 
   return (
     <div className={`min-h-screen bg-background ${styles.userPage}`}>
-      <div className={`${styles.userHeader} border-b border-border bg-background/80 backdrop-blur-md`}>
-        <div className="flex items-center justify-between px-4 py-3">
-          <h1 className={`text-xl font-bold text-white ${styles.userTitle}`}>ThreeOneOne</h1>
-          <CityFilter selectedCity={selectedCity} onCityChange={setSelectedCity} />
-        </div>
-      </div>
+      {/* Navigation Header - Fixed at top */}
+      <NavigationHeader selectedCity={selectedCity} onCityChange={setSelectedCity} />
 
-      {/* Main feed */}
-      <Feed selectedCity={selectedCity} key={`${selectedCity}-${feedReloadToken}`} />
+      {/* Main content with top padding to account for fixed header */}
+      <div className="pt-32">
+        {/* Main feed */}
+        <Feed selectedCity={selectedCity} key={`${selectedCity}-${feedReloadToken}`} />
+      </div>
       
       {/* Fixed button positioned within feed boundaries */}
       <Button
