@@ -27,42 +27,18 @@ export function Feed({ selectedCity }: FeedProps) {
       // Map UI city to DB enum
       const dbCity = selectedCity === 'SF' ? 'SF' : selectedCity === 'NYC' ? 'NYC' : 'BOSTON'
       
-      // First, get posts with upvotes > 0 ordered by upvotes desc
-      const { data: upvotedData, error: upvotedError } = await supabase
+      // Get all posts ordered by hotness/recency for consistent pagination
+      const { data: allData, error } = await supabase
         .from('report_ranked')
         .select('id, street_address, description, reported_time, images, city, upvotes, downvotes')
         .eq('city', dbCity)
-        .gt('upvotes', 0)
         .order('upvotes', { ascending: false })
         .order('reported_time', { ascending: false })
-        .limit(POSTS_PER_PAGE)
+        .range(currentOffset, currentOffset + POSTS_PER_PAGE - 1)
       
-      if (upvotedError) throw upvotedError
+      if (error) throw error
       
-      let data = upvotedData || []
-      
-      // If we don't have enough posts with upvotes, fill with recent posts
-      if (data.length < POSTS_PER_PAGE) {
-        const needed = POSTS_PER_PAGE - data.length
-        const usedIds = data.map(p => p.id)
-        
-        let recentQuery = supabase
-          .from('report_ranked')
-          .select('id, street_address, description, reported_time, images, city, upvotes, downvotes')
-          .eq('city', dbCity)
-          .order('reported_time', { ascending: false })
-          .limit(needed)
-        
-        // Only exclude used IDs if we have any
-        if (usedIds.length > 0) {
-          recentQuery = recentQuery.not('id', 'in', `(${usedIds.join(',')})`)
-        }
-        
-        const { data: recentData, error: recentError } = await recentQuery
-        
-        if (recentError) throw recentError
-        data = [...data, ...(recentData || [])]
-      }
+      const data = allData || []
 
       let mapped: Post[] = (data || []).map((r) => ({
         id: r.id as string,
@@ -113,19 +89,17 @@ export function Feed({ selectedCity }: FeedProps) {
         setPosts(mapped)
       } else {
         setPosts(prev => {
-          const combined = [...prev, ...mapped]
-          combined.sort((a, b) => {
-            const hb = computeHotScore(b.upvotes, b.downvotes, b.createdAt)
-            const ha = computeHotScore(a.upvotes, a.downvotes, a.createdAt)
-            if (hb !== ha) return hb - ha
-            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          })
-          return combined
+          // Filter out any duplicates to prevent duplicate posts
+          const existingIds = new Set(prev.map(p => p.id))
+          const newPosts = mapped.filter(p => !existingIds.has(p.id))
+          
+          // Simply append new posts without re-sorting to maintain order
+          return [...prev, ...newPosts]
         })
       }
 
-      // Check if we have more data
-      setHasMore(mapped.length === POSTS_PER_PAGE)
+      // Check if we have more data - if we got less than requested, we've reached the end
+      setHasMore(data.length === POSTS_PER_PAGE)
       
       return mapped
     } catch (e) {

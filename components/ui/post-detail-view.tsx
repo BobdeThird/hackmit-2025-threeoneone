@@ -93,7 +93,7 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
           <div className="w-full">
             {/* Header info */}
             <div className="flex items-center space-x-2 text-sm mb-3">
-              <span className="font-bold text-white text-lg">{post.location}</span>
+              <span className="font-bold text-white text-lg break-words max-w-[400px]">{post.location}</span>
               <span className="text-muted-foreground">·</span>
               <span className="text-muted-foreground">
                 {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
@@ -101,7 +101,7 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
             </div>
 
             <div className="mb-4">
-              <p className="text-white text-lg leading-relaxed">{post.description}</p>
+              <p className="text-white text-lg leading-relaxed break-words overflow-wrap-anywhere">{post.description}</p>
             </div>
 
             {/* Image if present */}

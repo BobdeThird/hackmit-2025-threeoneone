@@ -53,7 +53,7 @@ export function PostCard({ post, onVote }: PostCardProps) {
         <div className="w-full">
           {/* Header info */}
           <div className="flex items-center space-x-2 text-sm">
-            <span className="font-bold text-[#e1e1e1] text-base">{post.location}</span>
+            <span className="font-bold text-[#e1e1e1] text-base truncate max-w-[200px]">{post.location}</span>
             <span className="text-muted-foreground">·</span>
             <span className="text-muted-foreground">
               {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
@@ -61,7 +61,7 @@ export function PostCard({ post, onVote }: PostCardProps) {
           </div>
 
           <div className="mb-3">
-            <p className="text-[#e1e1e1] text-base">{post.description}</p>
+            <p className="text-[#e1e1e1] text-base break-words overflow-hidden">{post.description}</p>
           </div>
 
           {/* Image if present */}
