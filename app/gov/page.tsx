@@ -136,8 +136,8 @@ export default function GovPage() {
               const json = await res.json();
               const items = json.items || [];
               return items
-                .filter((i: any) => Array.isArray(i.coordinates) && i.coordinates.length === 2)
-                .map((i: any) => ({ 
+                .filter((i: { coordinates?: unknown }) => Array.isArray(i.coordinates) && i.coordinates.length === 2)
+                .map((i: { city: string; department: string; address: string; coordinates: [number, number] }) => ({ 
                   city: i.city as 'NYC'|'BOSTON'|'SF', 
                   department: i.department, 
                   address: i.address, 
@@ -175,9 +175,9 @@ export default function GovPage() {
     function addMapLayers() {
       // Add 311 issue points
     if (m.getSource("cases")) {
-        (m.getSource("cases") as mapboxgl.GeoJSONSource).setData(geojson as any);
+        (m.getSource("cases") as mapboxgl.GeoJSONSource).setData(geojson as GeoJSON.FeatureCollection);
     } else {
-        m.addSource("cases", { type: "geojson", data: geojson as any });
+        m.addSource("cases", { type: "geojson", data: geojson as GeoJSON.FeatureCollection });
       m.addLayer({
         id: "points",
         type: "circle",
@@ -193,13 +193,13 @@ export default function GovPage() {
 
         // Click handler for points
       m.on("click", "points", (e) => {
-          const f = e.features?.[0] as any;
+          const f = e.features?.[0] as mapboxgl.MapboxGeoJSONFeature;
         if (!f) return;
           
           const reportId = f.properties?.id;
-        if (reportId) {
+          if (reportId) {
             setLoadingPost(true);
-            loadPostDetails(reportId, f.properties);
+            loadPostDetails(reportId, f.properties || undefined);
           }
         });
 
@@ -237,9 +237,9 @@ export default function GovPage() {
       };
 
     if (m.getSource('departments')) {
-        (m.getSource('departments') as mapboxgl.GeoJSONSource).setData(deptFc as any);
+        (m.getSource('departments') as mapboxgl.GeoJSONSource).setData(deptFc as GeoJSON.FeatureCollection);
     } else {
-        m.addSource('departments', { type: 'geojson', data: deptFc as any });
+        m.addSource('departments', { type: 'geojson', data: deptFc as GeoJSON.FeatureCollection });
       m.addLayer({
         id: 'departments-layer',
           type: 'circle',
@@ -257,7 +257,7 @@ export default function GovPage() {
   }, [geojson, deptPoints, mapReady]);
 
   // Load post details
-  const loadPostDetails = async (reportId: string, fallback?: any) => {
+  const loadPostDetails = async (reportId: string, fallback?: { description?: string; address?: string; city?: string; images?: string[]; createdAt?: string }) => {
     try {
       const { data: report, error } = await supabase
         .from('report_ranked')
@@ -273,7 +273,7 @@ export default function GovPage() {
 
       // Build comment tree
       const byId = new Map();
-      const roots: any[] = [];
+      const roots: { id: string; author: string; content: string; createdAt: string; children: unknown[] }[] = [];
       
       for (const c of flatComments || []) {
         byId.set(c.id, {
