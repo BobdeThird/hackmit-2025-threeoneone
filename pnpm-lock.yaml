@@ -53,6 +53,9 @@ importers:
       exifreader:
         specifier: ^4.31.2
         version: 4.31.2
+      heic-to:
+        specifier: ^1.2.2
+        version: 1.2.2
       lucide-react:
         specifier: ^0.544.0
         version: 0.544.0(react@19.1.0)
@@ -2217,6 +2220,9 @@ packages:
 
   headers-polyfill@4.0.3:
     resolution: {integrity: sha512-IScLbePpkvO846sIwOtOTDjutRMWdXdJmXdMvk6gCBHxFO8d+QKOQedyZSxFTTFYRSmlgSTDtXqqq4pcenBXLQ==}
+
+  heic-to@1.2.2:
+    resolution: {integrity: sha512-5mtSfSbyFL770ey+6TtU5RBs1JPW2313SjilndKbHBs3RcJ7n/Vlk6AAw8bksuM32vOQUd0whbgdzVKYQdiq2g==}
 
   http-errors@2.0.0:
     resolution: {integrity: sha512-FtwrG/euBzaEjYeRqOgly7G0qviiXoJWnvEH2Z1plBdXgbyjv34pHTSb9zoeHMyDy33+DWy5Wt9Wo+TURtOYSQ==}
@@ -5853,6 +5859,8 @@ snapshots:
       function-bind: 1.1.2
 
   headers-polyfill@4.0.3: {}
+
+  heic-to@1.2.2: {}
 
   http-errors@2.0.0:
     dependencies:

@@ -20,6 +20,74 @@ interface PostModalProps {
   onPosted?: () => void
 }
 
+// Utility functions for handling base64 HEIC data (based on community solution)
+function convertBase64ToUInt8Array(base64: string): Uint8Array {
+  // Remove data URL prefix if present (e.g., "data:image/heic;base64,")
+  if (base64.startsWith("data:")) {
+    base64 = base64.split(",")[1];
+  }
+
+  const binary_string = window.atob(base64);
+  const len = binary_string.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary_string.charCodeAt(i);
+  }
+
+  return bytes;
+}
+
+async function extractBase64FromBlob(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(String(reader.result));
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+// Validate if file appears to be a valid HEIC file
+function isValidHeicFile(file: File): boolean {
+  // Basic validation - check file size and type
+  if (file.size === 0) return false;
+  if (file.size > 50 * 1024 * 1024) return false; // Reject files over 50MB
+  
+  const isHeicType = file.type === 'image/heic' || file.type === 'image/heif';
+  const hasHeicExtension = /\.(heic|heif)$/i.test(file.name);
+  
+  return isHeicType || hasHeicExtension;
+}
+
+// Fallback conversion method using base64 (adapted for heic-to)
+async function convertHEICWithBase64Fallback(file: File, heicTo: any): Promise<Blob> {
+  console.log('Trying base64 fallback method...')
+  
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = async () => {
+      try {
+        const base64Data = String(reader.result);
+        const uint8Array = convertBase64ToUInt8Array(base64Data);
+        const blob = new Blob([uint8Array], { type: "image/heic" });
+        
+        const convertedBlob = await heicTo({
+          blob: blob,
+          type: "image/jpeg",
+          quality: 1
+        });
+        
+        resolve(convertedBlob as Blob);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 
 export function PostModal({ isOpen, onClose, selectedCity, onPosted }: PostModalProps) {
   const [formData, setFormData] = useState({
@@ -29,13 +97,92 @@ export function PostModal({ isOpen, onClose, selectedCity, onPosted }: PostModal
   })
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setFormData((prev) => ({ ...prev, image: file }))
-      
-      // Try to extract GPS coordinates from the image
+    const originalFile = e.target.files?.[0]
+    if (originalFile) {
+      let processedFile = originalFile
+
+      // Check if the file is HEIC and convert to JPEG
+      const isHeic = originalFile.type === 'image/heic' || 
+                     originalFile.type === 'image/heif' ||
+                     originalFile.name.toLowerCase().endsWith('.heic') ||
+                     originalFile.name.toLowerCase().endsWith('.heif')
+
+      if (isHeic) {
+        // Validate the HEIC file first
+        if (!isValidHeicFile(originalFile)) {
+          console.warn('Invalid HEIC file detected, skipping conversion')
+          processedFile = originalFile
+        } else {
+          try {
+            console.log('HEIC file detected, converting to JPEG...', {
+              name: originalFile.name,
+              size: originalFile.size,
+              type: originalFile.type
+            })
+            
+            // Dynamic import to avoid SSR issues - using heic-to library
+            const { heicTo, isHeic } = await import('heic-to')
+            
+            // Double-check with heic-to's built-in validation
+            const isValidHeicFile = await isHeic(originalFile);
+            if (!isValidHeicFile) {
+              console.warn('heic-to validation failed - file may not be a valid HEIC');
+              throw new Error('File validation failed - not a valid HEIC file');
+            }
+            
+            let convertedBlob: Blob;
+            
+            try {
+              // Primary method: Convert directly using heic-to
+              convertedBlob = await heicTo({
+                blob: originalFile,
+                type: "image/jpeg",
+                quality: 1 // Maximum quality (0-1)
+              });
+            } catch (primaryError: any) {
+              console.warn('Primary conversion failed, trying base64 fallback:', primaryError?.message)
+              
+              // Fallback method: Convert using base64 approach
+              convertedBlob = await convertHEICWithBase64Fallback(originalFile, heicTo);
+            }
+            
+            // Create a File object from the converted blob
+            processedFile = new File([convertedBlob], 
+              originalFile.name.replace(/\.(heic|heif)$/i, '.jpg'), 
+              { type: 'image/jpeg' }
+            )
+            console.log('HEIC conversion successful', {
+              originalSize: originalFile.size,
+              convertedSize: processedFile.size
+            })
+          } catch (conversionError: any) {
+            console.error('Failed to convert HEIC file:', {
+              error: conversionError,
+              code: conversionError?.code,
+              message: conversionError?.message,
+              fileName: originalFile.name,
+              fileSize: originalFile.size,
+              fileType: originalFile.type
+            })
+            
+            // Provide specific error messages based on error code
+            if (conversionError?.code === 2) {
+              console.error('LIBHEIF format error - the file may be corrupted or not a valid HEIC file')
+            } else if (conversionError?.message?.includes('File validation failed')) {
+              console.error('HEIC validation failed - file format not recognized')
+            }
+            
+            // If conversion fails, use the original file
+            processedFile = originalFile
+          }
+        }
+      }
+
+      // Try to extract GPS coordinates from the ORIGINAL file (before conversion)
+      // This ensures we don't lose EXIF data during HEIC->JPEG conversion
+      let gpsLocation: string | null = null;
       try {
-        const tags = await ExifReader.load(file)
+        const tags = await ExifReader.load(originalFile)
         
         // Extract GPS coordinates if available
         const gpsLat = tags.GPSLatitude
@@ -51,7 +198,7 @@ export function PostModal({ isOpen, onClose, selectedCity, onPosted }: PostModal
           // Handle longitude sign based on reference (West = negative)
           const finalLongitude = gpsLonRef.description?.includes('West') ? -Math.abs(longitude) : longitude
           
-          console.log('GPS coordinates extracted:', { latitude, longitude: finalLongitude })
+          console.log('GPS coordinates extracted from original HEIC:', { latitude, longitude: finalLongitude })
           
           // Try to get a readable address using reverse geocoding
           try {
@@ -85,25 +232,23 @@ export function PostModal({ isOpen, onClose, selectedCity, onPosted }: PostModal
               }
             }
             
-            setFormData((prev) => ({ 
-              ...prev, 
-              image: file,
-              location: prev.location || locationString // Only set if location is empty
-            }))
+            gpsLocation = locationString;
           } catch (geocodeError) {
             console.log('Reverse geocoding failed, using coordinates:', geocodeError)
             // Fall back to coordinates
-            const locationString = `${latitude.toFixed(6)}, ${finalLongitude.toFixed(6)}`
-            setFormData((prev) => ({ 
-              ...prev, 
-              image: file,
-              location: prev.location || locationString
-            }))
+            gpsLocation = `${latitude.toFixed(6)}, ${finalLongitude.toFixed(6)}`
           }
         }
       } catch (error) {
-        console.log('No GPS data found in image or error extracting GPS:', error)
+        console.log('No GPS data found in original image or error extracting GPS:', error)
       }
+
+      // Set form data with processed file and GPS location
+      setFormData((prev) => ({ 
+        ...prev, 
+        image: processedFile,
+        location: prev.location || (gpsLocation ?? "") // Use GPS location if available and field is empty
+      }))
     }
   }
 
@@ -202,7 +347,7 @@ export function PostModal({ isOpen, onClose, selectedCity, onPosted }: PostModal
               <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-border/50 rounded-lg cursor-pointer glass-card hover:bg-card/50 transition-colors">
                 <Upload className="h-8 w-8 text-muted-foreground mb-2" />
                 <span className="text-sm text-muted-foreground">Click to upload photo</span>
-                <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                <input type="file" accept="image/*,.heic,.heif" onChange={handleImageUpload} className="hidden" />
               </label>
             )}
           </div>
