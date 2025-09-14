@@ -1,9 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
+import { useParams } from "next/navigation"
+import { TwitterHeader } from "@/components/ui/twitter-header"
 import { PostDetailView } from "@/components/ui/post-detail-view"
 import type { Post } from "@/lib/types"
 import { supabase } from "@/lib/supabaseClient"
@@ -12,7 +11,6 @@ import { getUserVoteForPost } from "@/lib/vote-persistence"
 
 export default function PostPage() {
   const params = useParams()
-  const router = useRouter()
   const [post, setPost] = useState<Post | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -98,10 +96,11 @@ export default function PostPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="max-w-2xl mx-auto px-4 py-6">
+      <div className="min-h-screen bg-black">
+        <TwitterHeader title="Post" />
+        <div className="max-w-xl mx-auto px-4 py-6">
           <div className="flex items-center justify-center py-12">
-            <div className="text-muted-foreground">Loading post...</div>
+            <div className="text-white/60">Loading post...</div>
           </div>
         </div>
       </div>
@@ -110,20 +109,13 @@ export default function PostPage() {
 
   if (!post) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="max-w-2xl mx-auto px-4 py-6">
-          <Button
-            onClick={() => router.back()}
-            variant="ghost"
-            className="mb-4 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
+      <div className="min-h-screen bg-black">
+        <TwitterHeader title="Post" />
+        <div className="max-w-xl mx-auto px-4 py-6">
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <h1 className="text-2xl font-bold text-white mb-2">Post not found</h1>
-              <p className="text-muted-foreground">The post you&apos;re looking for doesn&apos;t exist.</p>
+              <p className="text-white/60">The post you&apos;re looking for doesn&apos;t exist.</p>
             </div>
           </div>
         </div>
@@ -132,22 +124,14 @@ export default function PostPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-2xl mx-auto px-4 py-6">
-        {/* Header with back button */}
-        <div className="mb-4">
-          <Button
-            onClick={() => router.back()}
-            variant="ghost"
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
+    <div className="min-h-screen bg-black">
+      <TwitterHeader title="Post" showMenuButton={true} />
+      
+      {/* Main content area with Twitter-style layout */}
+      <div className="max-w-xl mx-auto border-x border-[#2f3336] min-h-screen bg-black">
+        <div className="px-4 py-0">
+          <PostDetailView post={post} />
         </div>
-        
-        {/* Post detail view */}
-        <PostDetailView post={post} />
       </div>
     </div>
   )

@@ -40,7 +40,7 @@ export function NavigationHeader({ selectedCity, onCityChange }: NavigationHeade
   return (
     <header
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 border-b border-border transition-transform duration-300 ease-in-out",
+        "fixed top-0 left-0 right-0 z-50 bg-black/95 backdrop-blur supports-[backdrop-filter]:bg-black/75 border-b border-[#2f3336] transition-transform duration-300 ease-in-out",
         isVisible ? "translate-y-0" : "-translate-y-full"
       )}
     >

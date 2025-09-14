@@ -45,7 +45,7 @@ export function PostCard({ post, onVote }: PostCardProps) {
 
   return (
     <Card 
-      className="twitter-card border-0 rounded-none border-b border-border py-0 cursor-pointer hover:bg-muted/5 transition-colors"
+      className="twitter-card border-0 rounded-none border-b border-[#2f3336] py-0 cursor-pointer hover:bg-white/[0.02] transition-colors"
       onClick={handlePostClick}
     >
       <div className="px-4 py-2">
@@ -78,7 +78,7 @@ export function PostCard({ post, onVote }: PostCardProps) {
             </div>
           )}
 
-          <div className="flex items-center justify-between w-full">
+          <div className="flex items-center justify-between w-full pt-3 mt-2 border-t border-[#2f3336]/50">
             {/* Upvote */}
             <div className="flex items-center">
               <Button

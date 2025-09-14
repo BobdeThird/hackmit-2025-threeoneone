@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowUp, ArrowDown, MessageCircle, Share } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
@@ -87,9 +86,9 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
   }
 
   return (
-    <div className="space-y-4">
-      <Card className="twitter-card border border-border rounded-lg">
-        <div className="px-6 py-4">
+    <div className="space-y-0">
+      <div className="twitter-card border-0 bg-black">
+        <div className="px-4 py-3">
           <div className="w-full">
             {/* Header info */}
             <div className="flex items-center space-x-2 text-sm mb-3">
@@ -121,7 +120,7 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
             )}
 
             {/* Action buttons */}
-            <div className="flex items-center justify-between w-full pt-2 border-t border-border/50">
+            <div className="flex items-center justify-between w-full pt-3 mt-3 border-t border-[#2f3336]">
               {/* Upvote */}
               <div className="flex items-center">
                 <Button
@@ -188,13 +187,12 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
             </div>
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Comments section */}
       {showComments && (
-        <Card className="border border-border rounded-lg">
+        <div className="border-t border-[#2f3336] bg-black">
           <div className="p-4">
-            <h3 className="text-white text-lg font-semibold mb-4">Comments</h3>
             <CommentSection
               postId={post.id}
               comments={post.comments}
@@ -206,7 +204,7 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
               }}
             />
           </div>
-        </Card>
+        </div>
       )}
     </div>
   )
