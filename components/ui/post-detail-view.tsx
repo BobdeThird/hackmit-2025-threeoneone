@@ -1,20 +1,74 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowUp, ArrowDown, MessageCircle, Share } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { CommentSection } from "@/components/ui/comment-section"
+import { calculatePostVoteData, handleVoteChange } from "@/lib/vote-persistence"
+import { mockPosts } from "@/lib/mock-data"
 import type { Post } from "@/lib/types"
 
 interface PostDetailViewProps {
   post: Post
-  onVote: (postId: string, voteType: "up" | "down") => void
+  onVote?: (postId: string, voteType: "up" | "down") => void // Made optional since we'll handle it internally
 }
 
-export function PostDetailView({ post, onVote }: PostDetailViewProps) {
+export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProps) {
   const [showComments, setShowComments] = useState(true) // Default to showing comments on detail page
+  const [post, setPost] = useState(initialPost)
+  
+  // Apply stored votes when component mounts or post changes
+  useEffect(() => {
+    const originalPost = mockPosts.find(p => p.id === initialPost.id)
+    if (!originalPost) {
+      setPost(initialPost)
+      return
+    }
+    
+    const voteData = calculatePostVoteData(
+      initialPost.id,
+      originalPost.upvotes,
+      originalPost.downvotes,
+      originalPost.userVote
+    )
+    
+    setPost({
+      ...initialPost,
+      upvotes: voteData.upvotes,
+      downvotes: voteData.downvotes,
+      userVote: voteData.userVote
+    })
+  }, [initialPost])
+
+  const handleVote = (voteType: "up" | "down") => {
+    // Handle the vote change and persistence
+    const newUserVote = handleVoteChange(post.id, voteType, post.userVote)
+    
+    // Recalculate vote data based on the original mock data and new user vote
+    const originalPost = mockPosts.find(p => p.id === post.id)
+    if (!originalPost) return
+    
+    const voteData = calculatePostVoteData(
+      post.id,
+      originalPost.upvotes,
+      originalPost.downvotes,
+      originalPost.userVote
+    )
+
+    const updatedPost = {
+      ...post,
+      upvotes: voteData.upvotes,
+      downvotes: voteData.downvotes,
+      userVote: voteData.userVote
+    }
+    
+    setPost(updatedPost)
+    
+    // Call parent callback if provided (for compatibility)
+    onVote?.(post.id, voteType)
+  }
 
   const handleShare = async () => {
     const postUrl = `${window.location.origin}/post/${post.id}`
@@ -70,7 +124,7 @@ export function PostDetailView({ post, onVote }: PostDetailViewProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => onVote(post.id, "up")}
+                  onClick={() => handleVote("up")}
                   className={`twitter-button h-10 px-3 rounded-full ${
                     post.userVote === "up"
                       ? "text-green-500 hover:text-green-500 hover:bg-green-500/10"
@@ -89,7 +143,7 @@ export function PostDetailView({ post, onVote }: PostDetailViewProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => onVote(post.id, "down")}
+                  onClick={() => handleVote("down")}
                   className={`twitter-button h-10 px-3 rounded-full ${
                     post.userVote === "down"
                       ? "text-red-500 hover:text-red-500 hover:bg-red-500/10"

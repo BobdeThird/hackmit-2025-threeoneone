@@ -24,53 +24,7 @@ export default function PostPage() {
     setLoading(false)
   }, [params.id])
 
-  const handleVote = (postId: string, voteType: "up" | "down") => {
-    if (!post) return
-    
-    // Update local state (in a real app, this would update the backend)
-    setPost(prevPost => {
-      if (!prevPost) return null
-      
-      let newUpvotes = prevPost.upvotes
-      let newDownvotes = prevPost.downvotes
-      let newUserVote = prevPost.userVote
-
-      if (voteType === "up") {
-        if (prevPost.userVote === "up") {
-          // Remove upvote
-          newUpvotes -= 1
-          newUserVote = null
-        } else {
-          // Add upvote, remove downvote if exists
-          newUpvotes += 1
-          if (prevPost.userVote === "down") {
-            newDownvotes -= 1
-          }
-          newUserVote = "up"
-        }
-      } else {
-        if (prevPost.userVote === "down") {
-          // Remove downvote
-          newDownvotes -= 1
-          newUserVote = null
-        } else {
-          // Add downvote, remove upvote if exists
-          newDownvotes += 1
-          if (prevPost.userVote === "up") {
-            newUpvotes -= 1
-          }
-          newUserVote = "down"
-        }
-      }
-
-      return {
-        ...prevPost,
-        upvotes: newUpvotes,
-        downvotes: newDownvotes,
-        userVote: newUserVote
-      }
-    })
-  }
+  // Vote handling is now managed internally by PostDetailView component
 
   if (loading) {
     return (
@@ -123,7 +77,7 @@ export default function PostPage() {
         </div>
         
         {/* Post detail view */}
-        <PostDetailView post={post} onVote={handleVote} />
+        <PostDetailView post={post} />
       </div>
     </div>
   )

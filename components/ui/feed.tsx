@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { PostCard } from "@/components/ui/post-card"
 import { mockPosts } from "@/lib/mock-data"
+import { calculatePostVoteData, handleVoteChange } from "@/lib/vote-persistence"
 import type { Post } from "@/lib/types"
 
 interface FeedProps {
@@ -18,7 +19,25 @@ export function Feed({ selectedCity }: FeedProps) {
     setLoading(true)
     setTimeout(() => {
       const filteredPosts = mockPosts.filter((post) => post.city === selectedCity)
-      setPosts(filteredPosts)
+      
+      // Apply user's stored votes to each post
+      const postsWithUserVotes = filteredPosts.map(post => {
+        const voteData = calculatePostVoteData(
+          post.id, 
+          post.upvotes, 
+          post.downvotes, 
+          post.userVote
+        )
+        
+        return {
+          ...post,
+          upvotes: voteData.upvotes,
+          downvotes: voteData.downvotes,
+          userVote: voteData.userVote
+        }
+      })
+      
+      setPosts(postsWithUserVotes)
       setLoading(false)
     }, 500)
   }, [selectedCity])
@@ -27,37 +46,26 @@ export function Feed({ selectedCity }: FeedProps) {
     setPosts((prevPosts) =>
       prevPosts.map((post) => {
         if (post.id === postId) {
-          const newPost = { ...post }
+          // Handle the vote change and persistence
+          const newUserVote = handleVoteChange(postId, voteType, post.userVote)
+          
+          // Recalculate vote data based on the original mock data and new user vote
+          const originalPost = mockPosts.find(p => p.id === postId)
+          if (!originalPost) return post
+          
+          const voteData = calculatePostVoteData(
+            postId,
+            originalPost.upvotes,
+            originalPost.downvotes,
+            originalPost.userVote
+          )
 
-          if (voteType === "up") {
-            if (post.userVote === "up") {
-              // Remove upvote
-              newPost.upvotes -= 1
-              newPost.userVote = null
-            } else {
-              // Add upvote, remove downvote if exists
-              newPost.upvotes += 1
-              if (post.userVote === "down") {
-                newPost.downvotes -= 1
-              }
-              newPost.userVote = "up"
-            }
-          } else {
-            if (post.userVote === "down") {
-              // Remove downvote
-              newPost.downvotes -= 1
-              newPost.userVote = null
-            } else {
-              // Add downvote, remove upvote if exists
-              newPost.downvotes += 1
-              if (post.userVote === "up") {
-                newPost.upvotes -= 1
-              }
-              newPost.userVote = "down"
-            }
+          return {
+            ...post,
+            upvotes: voteData.upvotes,
+            downvotes: voteData.downvotes,
+            userVote: voteData.userVote
           }
-
-          return newPost
         }
         return post
       }),
