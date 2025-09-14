@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Upload } from "lucide-react"
+import ExifReader from "exifreader"
 // import { supabase } from "@/lib/supabaseClient"
 
 interface PostModalProps {
@@ -27,10 +28,82 @@ export function PostModal({ isOpen, onClose, selectedCity, onPosted }: PostModal
     image: null as File | null,
   })
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       setFormData((prev) => ({ ...prev, image: file }))
+      
+      // Try to extract GPS coordinates from the image
+      try {
+        const tags = await ExifReader.load(file)
+        
+        // Extract GPS coordinates if available
+        const gpsLat = tags.GPSLatitude
+        const gpsLatRef = tags.GPSLatitudeRef
+        const gpsLon = tags.GPSLongitude
+        const gpsLonRef = tags.GPSLongitudeRef
+        
+        if (gpsLat && gpsLatRef && gpsLon && gpsLonRef) {
+          // ExifReader already provides decimal degrees in the description field
+          const latitude = typeof gpsLat.description === 'number' ? gpsLat.description : parseFloat(gpsLat.description?.toString() || '0')
+          const longitude = typeof gpsLon.description === 'number' ? gpsLon.description : parseFloat(gpsLon.description?.toString() || '0')
+          
+          // Handle longitude sign based on reference (West = negative)
+          const finalLongitude = gpsLonRef.description?.includes('West') ? -Math.abs(longitude) : longitude
+          
+          console.log('GPS coordinates extracted:', { latitude, longitude: finalLongitude })
+          
+          // Try to get a readable address using reverse geocoding
+          try {
+            const response = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${finalLongitude}&zoom=18&addressdetails=1`,
+              {
+                headers: {
+                  'User-Agent': 'HackMIT-311-App'
+                }
+              }
+            )
+            const geocodeData = await response.json()
+            
+            let locationString = `${latitude.toFixed(6)}, ${finalLongitude.toFixed(6)}`
+            
+            if (geocodeData.display_name) {
+              // Extract street address from the display name
+              const address = geocodeData.address
+              if (address) {
+                const streetParts = []
+                if (address.house_number) streetParts.push(address.house_number)
+                if (address.road) streetParts.push(address.road)
+                if (streetParts.length > 0) {
+                  locationString = streetParts.join(' ')
+                  if (address.neighbourhood || address.suburb) {
+                    locationString += `, ${address.neighbourhood || address.suburb}`
+                  }
+                } else {
+                  locationString = geocodeData.display_name.split(',').slice(0, 2).join(',')
+                }
+              }
+            }
+            
+            setFormData((prev) => ({ 
+              ...prev, 
+              image: file,
+              location: prev.location || locationString // Only set if location is empty
+            }))
+          } catch (geocodeError) {
+            console.log('Reverse geocoding failed, using coordinates:', geocodeError)
+            // Fall back to coordinates
+            const locationString = `${latitude.toFixed(6)}, ${finalLongitude.toFixed(6)}`
+            setFormData((prev) => ({ 
+              ...prev, 
+              image: file,
+              location: prev.location || locationString
+            }))
+          }
+        }
+      } catch (error) {
+        console.log('No GPS data found in image or error extracting GPS:', error)
+      }
     }
   }
 

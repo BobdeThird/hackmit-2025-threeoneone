@@ -50,6 +50,9 @@ importers:
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
+      exifreader:
+        specifier: ^4.31.2
+        version: 4.31.2
       lucide-react:
         specifier: ^0.544.0
         version: 0.544.0(react@19.1.0)
@@ -1349,6 +1352,10 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@xmldom/xmldom@0.9.8':
+    resolution: {integrity: sha512-p96FSY54r+WJ50FIOsCOjyj/wavs8921hG5+kVMmZgKcvIKxMXHTrjNJvRgWa/zuX3B6t2lijLNFaOyuxUH+2A==}
+    engines: {node: '>=14.6'}
+
   accepts@2.0.0:
     resolution: {integrity: sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng==}
     engines: {node: '>= 0.6'}
@@ -1978,6 +1985,9 @@ packages:
   execa@9.6.0:
     resolution: {integrity: sha512-jpWzZ1ZhwUmeWRhS7Qv3mhpOhLfwI+uAX4e5fOcXqwMR7EcJ0pj2kV1CVzHVMX/LphnKWD3LObjZCoJ71lKpHw==}
     engines: {node: ^18.19.0 || >=20.5.0}
+
+  exifreader@4.31.2:
+    resolution: {integrity: sha512-1NwFxGzoVyDDXpT4pw/gqQ10domJPOJFQHNhw7I4/qJZq1Rln0OlE7bfZLTM1gfxahvVV/pe9Dvsscda8h+27g==}
 
   express-rate-limit@7.5.1:
     resolution: {integrity: sha512-7iN8iPMDzOMHPUYllBEsQdWVB6fPDMPqwjBaFrgr4Jgr/+okjvzAy+UHlYYL/Vs0OsOrMkwS6PJDkFlJwoxUnw==}
@@ -4806,6 +4816,9 @@ snapshots:
   '@unrs/resolver-binding-win32-x64-msvc@1.11.1':
     optional: true
 
+  '@xmldom/xmldom@0.9.8':
+    optional: true
+
   accepts@2.0.0:
     dependencies:
       mime-types: 3.0.1
@@ -5582,6 +5595,10 @@ snapshots:
       signal-exit: 4.1.0
       strip-final-newline: 4.0.0
       yoctocolors: 2.1.2
+
+  exifreader@4.31.2:
+    optionalDependencies:
+      '@xmldom/xmldom': 0.9.8
 
   express-rate-limit@7.5.1(express@5.1.0):
     dependencies:
