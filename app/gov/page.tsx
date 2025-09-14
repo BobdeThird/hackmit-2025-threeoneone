@@ -13,6 +13,7 @@ type CaseItem = {
   createdAt?: string;
   status?: string;
   coordinates?: [number, number];
+  images?: string[];
 };
 
 type Feature = {
@@ -115,7 +116,7 @@ export default function GovPage() {
     if (!mapboxToken) return;
     (async () => {
       try {
-        const res = await fetch("/api/reports?limit=1000");
+        const res = await fetch("/api/reports?limit=10000");
         const json = await res.json();
         const combined: CaseItem[] = json.items || [];
         setItems(combined);
@@ -160,10 +161,8 @@ export default function GovPage() {
         (async () => {
           try {
             const department = f.properties.category
-            const city = (f.properties.city || '').toUpperCase()
             const [lon, lat] = f.geometry.coordinates
             const qs = new URLSearchParams({
-              city,
               department,
               fromLon: String(lon),
               fromLat: String(lat),
@@ -288,7 +287,7 @@ export default function GovPage() {
       </div>
 
       {/* Right overlay: details */}
-      <div className="absolute top-4 right-4 w-72 map-overlay animate-slide-in">
+      <div className="absolute top-4 right-4 w-80 map-overlay animate-slide-in">
         <div className="text-center mb-3">
           <div className="w-12 h-12 bg-gradient-to-br from-primary to-map-accent rounded-full mx-auto mb-2 flex items-center justify-center">
             <MapPin className="w-6 h-6 text-white" />
@@ -309,6 +308,14 @@ export default function GovPage() {
                 <p className="text-[11px] opacity-70">{selectedFeature.properties.address}</p>
               ) : null}
             </div>
+            {/* Images carousel (first 3) */}
+            {Array.isArray(selectedFeature.properties.images) && selectedFeature.properties.images.length > 0 ? (
+              <div className="grid grid-cols-3 gap-1 mb-2">
+                {selectedFeature.properties.images.slice(0,3).map((src: string, idx: number) => (
+                  <img key={idx} src={src.startsWith('public/') ? src.replace('public/','/') : src} alt="evidence" className="w-full h-16 object-cover rounded" />
+                ))}
+              </div>
+            ) : null}
             <div className="flex gap-2 text-xs">
               <span className="btn-glass flex-1 px-3 py-2">{selectedFeature.properties.city.toUpperCase()}</span>
               {selectedFeature.properties.status ? (

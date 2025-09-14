@@ -54,12 +54,13 @@ const CITY_GEOCODE_LABEL: Record<'NYC' | 'BOSTON' | 'SF', string> = {
   SF: 'San Francisco, CA',
 }
 
-async function geocode(address: string, city: string): Promise<[number, number] | null> {
-  const key = `${city}|${address}`
+async function geocode(address: string, city?: string): Promise<[number, number] | null> {
+  const key = `${city || ''}|${address}`
   if (cache.geocoded && cache.geocoded[key] !== undefined) return cache.geocoded[key]
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
   if (!token) return null
-  const q = encodeURIComponent(`${address}, ${CITY_GEOCODE_LABEL[city as 'NYC' | 'BOSTON' | 'SF'] || city}`)
+  const label = city && CITY_GEOCODE_LABEL[city as 'NYC' | 'BOSTON' | 'SF'] ? CITY_GEOCODE_LABEL[city as 'NYC' | 'BOSTON' | 'SF'] : (city || '')
+  const q = encodeURIComponent(label ? `${address}, ${label}` : address)
   const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${q}.json?limit=1&access_token=${token}`
   try {
     const res = await fetch(url, { next: { revalidate: 60 * 60 } })
@@ -106,19 +107,21 @@ async function getRoute(from: [number, number], to: [number, number]): Promise<G
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
-    const city = (searchParams.get('city') || '').toUpperCase() as 'NYC' | 'BOSTON' | 'SF'
+    const cityRaw = (searchParams.get('city') || '').toUpperCase()
+    const city = (['NYC','BOSTON','SF'].includes(cityRaw) ? cityRaw : '') as 'NYC' | 'BOSTON' | 'SF'
     const department = (searchParams.get('department') || '').trim()
     const fromLon = Number(searchParams.get('fromLon'))
     const fromLat = Number(searchParams.get('fromLat'))
     const includeRoute = searchParams.get('includeRoute') === 'true'
 
-    if (!city || !department) return NextResponse.json({ error: 'city and department required' }, { status: 400 })
+    if (!department) return NextResponse.json({ error: 'department required' }, { status: 400 })
 
     const rows = await loadAllRows()
     // Normalize department label variations (e.g., Housing Buildings & Code -> Housing, Buildings & Code)
     const norm = (s: string) => s.replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').trim()
     const target = norm(department)
-    const candidates = rows.filter((r) => r.city === city && norm(r.department) === target)
+    // If city is provided, filter by it; otherwise consider all cities
+    const candidates = rows.filter((r) => (city ? r.city === city : true) && norm(r.department) === target)
     if (candidates.length === 0) return NextResponse.json({ candidates: [], nearest: null })
 
     const withCoords: DeptLoc[] = []
