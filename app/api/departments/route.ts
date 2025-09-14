@@ -114,6 +114,20 @@ export async function GET(req: Request) {
     const fromLat = Number(searchParams.get('fromLat'))
     const includeRoute = searchParams.get('includeRoute') === 'true'
 
+    // Special case: if department is "all", return all departments for the city
+    if (department === 'all') {
+      const rows = await loadAllRows()
+      const filtered = rows.filter((r) => city ? r.city === city : true)
+      
+      const withCoords: DeptLoc[] = []
+      for (const r of filtered) {
+        const coords = await geocode(r.address, r.city)
+        withCoords.push({ ...r, coordinates: coords ?? undefined })
+      }
+      
+      return NextResponse.json({ items: withCoords.filter((c) => c.coordinates) })
+    }
+
     if (!department) return NextResponse.json({ error: 'department required' }, { status: 400 })
 
     const rows = await loadAllRows()

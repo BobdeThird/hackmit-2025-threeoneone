@@ -1,9 +1,12 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import mapboxgl from "mapbox-gl";
 import { MapPin, Navigation } from "lucide-react";
+import { PostDetailView } from "@/components/ui/post-detail-view";
+import type { Post } from "@/lib/types";
+import { supabase } from "@/lib/supabaseClient";
+import { getUserVoteForPost } from "@/lib/vote-persistence";
 
 type CaseItem = {
   id: string;
@@ -26,14 +29,7 @@ type Feature = {
 type FeatureCollection = { type: "FeatureCollection"; features: Feature[] };
 
 const palette = [
-  "#60a5fa",
-  "#34d399",
-  "#fbbf24",
-  "#f472b6",
-  "#a78bfa",
-  "#f87171",
-  "#22d3ee",
-  "#84cc16",
+  "#60a5fa", "#34d399", "#fbbf24", "#f472b6", "#a78bfa", "#f87171", "#22d3ee", "#84cc16",
 ];
 
 function colorForCategory(name: string) {
@@ -47,14 +43,43 @@ export default function GovPage() {
   const map = useRef<mapboxgl.Map | null>(null);
   const mapboxToken = (process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string) || "";
   const [items, setItems] = useState<CaseItem[]>([]);
-  const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [deptPoints, setDeptPoints] = useState<{
+    city: 'NYC' | 'BOSTON' | 'SF';
+    department: string;
+    address: string;
+    coordinates: [number, number];
+  }[]>([]);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [loadingPost, setLoadingPost] = useState(false);
 
-  // Build GeoJSON from items with deterministic color per category
+  // City presets
+  const CITY_PRESETS = {
+    BOSTON: {
+      center: [-71.10854197159861, 42.31579034590908] as [number, number],
+      zoom: 11.7,
+      bounds: [[-71.37, 42.24], [-70.91, 42.48]] as [[number, number], [number, number]]
+    },
+    SF: {
+      center: [-122.45347499644797, 37.755113984001724] as [number, number],
+      zoom: 11.9,
+      bounds: [[-122.68, 37.68], [-122.28, 37.90]] as [[number, number], [number, number]]
+    },
+  };
+
+  const applyCityPreset = (key: 'BOSTON' | 'SF') => {
+    if (!map.current) return;
+    const preset = CITY_PRESETS[key];
+    map.current.fitBounds(preset.bounds as mapboxgl.LngLatBoundsLike, {
+      padding: 40,
+      duration: 800,
+    });
+  };
+
+  // Build GeoJSON from items
   const geojson: FeatureCollection = useMemo(() => {
     const features: Feature[] = items
-      .filter((i) => i.coordinates)
+      .filter((i) => i.coordinates && (i.city === "boston" || i.city === "sf"))
       .map((i) => ({
         type: "Feature",
         geometry: { type: "Point", coordinates: i.coordinates as [number, number] },
@@ -62,18 +87,6 @@ export default function GovPage() {
       }));
     return { type: "FeatureCollection", features };
   }, [items]);
-
-  // Category counts
-  const categoryCounts = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const f of geojson.features) {
-      const key = f.properties.category || "Unknown";
-      map.set(key, (map.get(key) || 0) + 1);
-    }
-    return Array.from(map.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 8);
-  }, [geojson]);
 
   // Init map
   useEffect(() => {
@@ -83,63 +96,88 @@ export default function GovPage() {
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/dark-v11",
-      center: [-122.4194, 37.7749],
-      zoom: 10,
+      center: [-98.5795, 39.8283],
+      zoom: 3.5,
       pitch: 45,
       bearing: -10,
       antialias: true,
     });
 
     map.current.on("load", () => setMapReady(true));
-
-    map.current.addControl(
-      new mapboxgl.NavigationControl({ visualizePitch: true }),
-      "top-right"
-    );
-
-    map.current.on("style.load", () => {
-      if (!map.current) return;
-      const fog: mapboxgl.FogSpecification = {
-        range: [2, 8],
-        color: "hsl(220, 27%, 8%)",
-        "high-color": "hsl(217, 91%, 60%)",
-        "horizon-blend": 0.1,
-      };
-      // setFog is available in Mapbox GL JS v3+; cast for type safety across defs
-      (map.current as unknown as { setFog?: (f: mapboxgl.FogSpecification) => void }).setFog?.(fog);
-    });
+    map.current.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), "top-right");
 
     return () => map.current?.remove();
   }, [mapboxToken]);
 
-  // Fetch items via unified API once token present
+  // Fetch 311 data
   useEffect(() => {
     if (!mapboxToken) return;
     (async () => {
       try {
         const res = await fetch("/api/reports?limit=10000");
         const json = await res.json();
-        const combined: CaseItem[] = json.items || [];
-        setItems(combined);
+        setItems(json.items || []);
       } catch (e) {
         console.error("Failed to load 311 data", e);
       }
     })();
   }, [mapboxToken]);
 
-  // Add or update non-clustered source + single points layer whenever geojson changes
+  // Load department points
+  useEffect(() => {
+    if (!mapboxToken) return;
+    (async () => {
+      try {
+        const cities = ['BOSTON', 'SF'];
+        const results = await Promise.all(
+          cities.map(async (city) => {
+            try {
+              const res = await fetch(`/api/departments?city=${city}&department=all`);
+              const json = await res.json();
+              const items = json.items || [];
+              return items
+                .filter((i: any) => Array.isArray(i.coordinates) && i.coordinates.length === 2)
+                .map((i: any) => ({ 
+                  city: i.city as 'NYC'|'BOSTON'|'SF', 
+                  department: i.department, 
+                  address: i.address, 
+                  coordinates: i.coordinates as [number, number] 
+                }));
+            } catch {
+              return [];
+            }
+          })
+        );
+        setDeptPoints(results.flat());
+      } catch (e) {
+        console.error('Failed to load department points', e);
+      }
+    })();
+  }, [mapboxToken]);
+
+  // Add map sources and layers
   useEffect(() => {
     if (!map.current || !mapReady) return;
     const m = map.current;
 
-    if (m.getSource("cases")) {
-      (m.getSource("cases") as mapboxgl.GeoJSONSource).setData(geojson as unknown as GeoJSON.FeatureCollection);
-    } else {
-      m.addSource("cases", {
-        type: "geojson",
-        data: geojson as GeoJSON.FeatureCollection,
-      });
+    // Wait for style to load
+    if (!m.isStyleLoaded()) {
+      const onStyleLoad = () => {
+        m.off('styledata', onStyleLoad);
+        setTimeout(addMapLayers, 100);
+      };
+      m.on('styledata', onStyleLoad);
+      return;
+    }
 
+    addMapLayers();
+
+    function addMapLayers() {
+      // Add 311 issue points
+    if (m.getSource("cases")) {
+        (m.getSource("cases") as mapboxgl.GeoJSONSource).setData(geojson as any);
+    } else {
+        m.addSource("cases", { type: "geojson", data: geojson as any });
       m.addLayer({
         id: "points",
         type: "circle",
@@ -153,74 +191,133 @@ export default function GovPage() {
         },
       });
 
-      // Click a point to show details
+        // Click handler for points
       m.on("click", "points", (e) => {
-        const f = (e as mapboxgl.MapLayerMouseEvent).features?.[0] as unknown as Feature | undefined;
+          const f = e.features?.[0] as any;
         if (!f) return;
-        setSelectedFeature(f as Feature);
-        // Fetch nearest department route for this issue
-        (async () => {
-          try {
-            const department = f.properties.category
-            const [lon, lat] = f.geometry.coordinates
-            const qs = new URLSearchParams({
-              department,
-              fromLon: String(lon),
-              fromLat: String(lat),
-              includeRoute: 'true',
-            })
-            const res = await fetch(`/api/departments?${qs.toString()}`)
-            const json = await res.json()
-            // Draw route if exists
-            if (json?.route && m.getSource('route')) {
-              const feature: GeoJSON.Feature<GeoJSON.LineString> = { type: 'Feature', geometry: json.route as GeoJSON.LineString, properties: {} }
-              ;(m.getSource('route') as mapboxgl.GeoJSONSource).setData(feature as unknown as GeoJSON.FeatureCollection)
-            } else if (json?.route) {
-              const feature: GeoJSON.Feature<GeoJSON.LineString> = { type: 'Feature', geometry: json.route as GeoJSON.LineString, properties: {} }
-              m.addSource('route', { type: 'geojson', data: feature as unknown as GeoJSON.FeatureCollection })
-              m.addLayer({
-                id: 'route-line',
-                type: 'line',
-                source: 'route',
-                paint: { 'line-color': '#38bdf8', 'line-width': 4, 'line-opacity': 0.85 },
-              })
-            }
-          } catch (err) {
-            console.error('route fetch failed', err)
+          
+          const reportId = f.properties?.id;
+        if (reportId) {
+            setLoadingPost(true);
+            loadPostDetails(reportId, f.properties);
           }
-        })()
-      });
+        });
+
       m.on("mouseenter", "points", () => (m.getCanvas().style.cursor = "pointer"));
       m.on("mouseleave", "points", () => (m.getCanvas().style.cursor = ""));
     }
 
-    // Apply category filter on the single points layer
-    if (selectedCategory) {
-      m.setFilter("points", ["==", ["get", "category"], selectedCategory] as unknown as mapboxgl.Expression);
-      // Fit to bounds
-      const coords = geojson.features
-        .filter((f) => f.properties.category === selectedCategory)
-        .map((f) => f.geometry.coordinates);
-      if (coords.length) {
-        let minX = coords[0][0], maxX = coords[0][0], minY = coords[0][1], maxY = coords[0][1];
-        for (const [x, y] of coords) {
-          minX = Math.min(minX, x);
-          maxX = Math.max(maxX, x);
-          minY = Math.min(minY, y);
-          maxY = Math.max(maxY, y);
+      // Add department points
+      const getDepartmentColor = (category: string) => {
+        switch (category) {
+          case 'Public Safety': return '#ef4444';
+          case 'Public Works & Transportation': return '#3b82f6';
+          case 'Parks & Recreation': return '#22c55e';
+          case 'Health & Human Services': return '#f59e0b';
+          case 'Housing Buildings & Code': return '#8b5cf6';
+          case 'Utilities (Water/Power)': return '#06b6d4';
+          case 'Sanitation & Environment': return '#84cc16';
+          case 'Animal Services': return '#ec4899';
+          default: return '#6b7280';
         }
-        m.fitBounds(
-          [
-            [minX, minY],
-            [maxX, maxY],
-          ],
-          { padding: 60, duration: 800 }
-        );
-      }
+      };
+
+      const deptFc = {
+      type: 'FeatureCollection',
+      features: deptPoints.map((p) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: p.coordinates },
+          properties: { 
+            city: p.city, 
+            department: p.department, 
+            address: p.address,
+            color: getDepartmentColor(p.department)
+          },
+        })),
+      };
+
+    if (m.getSource('departments')) {
+        (m.getSource('departments') as mapboxgl.GeoJSONSource).setData(deptFc as any);
     } else {
-      m.setFilter("points", undefined as unknown as mapboxgl.Expression);
+        m.addSource('departments', { type: 'geojson', data: deptFc as any });
+      m.addLayer({
+        id: 'departments-layer',
+          type: 'circle',
+        source: 'departments',
+                paint: {
+            'circle-color': ['get', 'color'],
+                'circle-radius': 6,
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-width': 2,
+            'circle-opacity': 0.8,
+          },
+        });
+      }
     }
-  }, [geojson, selectedCategory, mapReady]);
+  }, [geojson, deptPoints, mapReady]);
+
+  // Load post details
+  const loadPostDetails = async (reportId: string, fallback?: any) => {
+    try {
+      const { data: report, error } = await supabase
+        .from('report_ranked')
+        .select('id, street_address, city, description, reported_time, images, upvotes, downvotes')
+        .eq('id', reportId)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      const comRes = await fetch(`/api/comments?report_id=${encodeURIComponent(reportId)}`, { cache: 'no-store' });
+      const comJson = await comRes.json();
+      const flatComments = comJson.ok ? comJson.items : [];
+
+      // Build comment tree
+      const byId = new Map();
+      const roots: any[] = [];
+      
+      for (const c of flatComments || []) {
+        byId.set(c.id, {
+          id: c.id,
+          author: c.author_name || 'Anonymous',
+          content: c.content,
+          createdAt: c.created_at,
+          children: [],
+        });
+      }
+      
+      for (const c of flatComments || []) {
+        const node = byId.get(c.id);
+        const parentId = c.parent_comment_id;
+        if (parentId && byId.has(parentId)) {
+          byId.get(parentId).children.push(node);
+    } else {
+          roots.push(node);
+        }
+      }
+
+      const mapped: Post = {
+        id: reportId,
+        description: report?.description || fallback?.description || '',
+        location: report?.street_address || fallback?.address || '',
+        city: report?.city || fallback?.city || '',
+        imageUrl: Array.isArray(report?.images) && report.images.length > 0 
+          ? report.images[0] 
+          : (Array.isArray(fallback?.images) && fallback.images.length > 0 ? fallback.images[0] : undefined),
+        upvotes: report?.upvotes ?? 0,
+        downvotes: report?.downvotes ?? 0,
+        userVote: getUserVoteForPost(reportId),
+        createdAt: report?.reported_time || fallback?.createdAt || new Date().toISOString(),
+        comments: roots,
+      };
+      
+      setSelectedPost(mapped);
+    } catch (err) {
+      console.error('Failed to load post details', err);
+      setSelectedPost(null);
+    } finally {
+      setLoadingPost(false);
+    }
+  };
 
   if (!mapboxToken) {
     return (
@@ -240,126 +337,60 @@ export default function GovPage() {
     <div className="relative w-full h-screen bg-background overflow-hidden">
       <div ref={mapContainer} className="absolute inset-0 map-container" />
 
-      {/* Left overlay: category grouping */}
-      <div className="absolute top-4 left-4 w-80 map-overlay animate-slide-in">
+      {/* Simple header */}
+      <div className="absolute top-4 left-4 map-overlay animate-slide-in">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
             <Navigation className="w-4 h-4 text-primary-foreground" />
           </div>
           <div>
             <h1 className="text-lg font-bold">Gov View</h1>
-            <p className="text-xs text-muted-foreground">311 categories</p>
+            <p className="text-xs text-muted-foreground">311 Issues & Departments</p>
           </div>
         </div>
 
-        {/* Simplified UI: remove extra quick actions */}
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs mb-1">
-            <span className="text-muted-foreground">Top categories</span>
-            <span className="opacity-70">{geojson.features.length} issues</span>
-          </div>
-          <div className="grid grid-cols-1 gap-2">
+        {/* City buttons */}
+        <div className="flex gap-2">
+          <button 
+            className="btn-glass px-3 py-1 text-xs" 
+            onClick={() => applyCityPreset('BOSTON')}
+          >
+            Boston
+          </button>
             <button
-              className={`btn-glass text-left px-3 py-2 text-sm ${!selectedCategory ? "bg-primary/20" : ""}`}
-              onClick={() => setSelectedCategory(null)}
-            >
-              All categories
-            </button>
-            {categoryCounts.map(([cat, count]) => (
-              <button
-                key={cat}
-                className={`btn-glass text-left px-3 py-2 text-sm flex items-center justify-between ${
-                  selectedCategory === cat ? "bg-primary/30 border-primary/50" : ""
-                }`}
-                onClick={() => setSelectedCategory(cat)}
-              >
-                <span className="truncate">{cat}</span>
-                <span
-                  className="ml-2 text-[10px] px-1.5 py-0.5 rounded"
-                  style={{ background: colorForCategory(cat), color: "#0b1020" }}
-                >
-                  {count}
-                </span>
+            className="btn-glass px-3 py-1 text-xs" 
+            onClick={() => applyCityPreset('SF')}
+          >
+            San Francisco
               </button>
-            ))}
-          </div>
         </div>
       </div>
 
-      {/* Right overlay: details */}
-      <div className="absolute top-4 right-4 w-80 map-overlay animate-slide-in">
+      {/* Post details */}
+      <div className="absolute top-4 right-4 w-96 map-overlay animate-slide-in">
         <div className="text-center mb-3">
           <div className="w-12 h-12 bg-gradient-to-br from-primary to-map-accent rounded-full mx-auto mb-2 flex items-center justify-center">
             <MapPin className="w-6 h-6 text-white" />
           </div>
-          <p className="text-xs text-muted-foreground">Issue details</p>
+          <p className="text-xs text-muted-foreground">Issue Details</p>
         </div>
-
-        {selectedFeature ? (
-          <div className="space-y-3">
-            <div className="text-center">
-              <h3 className="text-sm font-semibold mb-1">
-                {selectedFeature.properties.category}
-              </h3>
-              <p className="text-xs text-muted-foreground mb-2 whitespace-pre-wrap">
-                {selectedFeature.properties.description || "No description"}
-              </p>
-              {selectedFeature.properties.address ? (
-                <p className="text-[11px] opacity-70">{selectedFeature.properties.address}</p>
-              ) : null}
-            </div>
-            {/* Images carousel (first 3) */}
-            {Array.isArray(selectedFeature.properties.images) && selectedFeature.properties.images.length > 0 ? (
-              <div className="grid grid-cols-3 gap-1 mb-2">
-                {selectedFeature.properties.images.slice(0,3).map((src: string, idx: number) => (
-                  <div key={idx} className="relative w-full h-16">
-                    <Image
-                      src={src.startsWith('public/') ? src.replace('public/','/') : src}
-                      alt="evidence"
-                      fill
-                      className="object-cover rounded"
-                      sizes="(max-width: 768px) 33vw, 80px"
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : null}
-            <div className="flex gap-2 text-xs">
-              <span className="btn-glass flex-1 px-3 py-2">{selectedFeature.properties.city.toUpperCase()}</span>
-              {selectedFeature.properties.status ? (
-                <span className="btn-glass flex-1 px-3 py-2">{selectedFeature.properties.status}</span>
-              ) : null}
-            </div>
-          </div>
+        
+        {selectedPost ? (
+          <PostDetailView post={selectedPost} />
+        ) : loadingPost ? (
+          <div className="text-center text-xs text-muted-foreground">Loading...</div>
         ) : (
-          <div className="text-center space-y-2">
-            <p className="text-xs text-muted-foreground">Click any point to view details</p>
-            <div className="flex items-center justify-center gap-1">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="w-1 h-1 bg-map-accent rounded-full animate-glow-pulse"
-                  style={{ animationDelay: `${i * 0.5}s` }}
-                />
-              ))}
-            </div>
-          </div>
+          <div className="text-center text-xs text-muted-foreground">Click any point to view details</div>
         )}
       </div>
 
-      {/* Bottom bar */}
+      {/* Bottom status */}
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-        <div className="glass rounded-full px-4 py-2 flex items-center gap-4 text-xs">
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-map-accent rounded-full animate-glow-pulse"></div>
-            <span>{geojson.features.length} Issues</span>
-          </div>
+        <div className="glass rounded-full px-4 py-2 flex items-center gap-1 text-xs">
+          <div className="w-2 h-2 bg-map-accent rounded-full animate-glow-pulse"></div>
+          <span>{geojson.features.length} Issues</span>
         </div>
       </div>
     </div>
   );
 }
-
-
-
