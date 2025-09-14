@@ -3,12 +3,12 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Upload, X } from "lucide-react"
+import { Upload } from "lucide-react"
 
 interface PostModalProps {
   isOpen: boolean
@@ -19,7 +19,6 @@ interface PostModalProps {
 
 export function PostModal({ isOpen, onClose, selectedCity }: PostModalProps) {
   const [formData, setFormData] = useState({
-    title: "",
     description: "",
     location: "",
     image: null as File | null,
@@ -38,7 +37,6 @@ export function PostModal({ isOpen, onClose, selectedCity }: PostModalProps) {
 
     // Reset form and close modal
     setFormData({
-      title: "",
       description: "",
       location: "",
       image: null,
@@ -46,32 +44,28 @@ export function PostModal({ isOpen, onClose, selectedCity }: PostModalProps) {
     onClose()
   }
 
-  const removeImage = () => {
-    setFormData((prev) => ({ ...prev, image: null }))
-  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="glass-card border-border/50 max-w-md mx-4">
-        <DialogHeader>
-          <DialogTitle className="text-foreground">Report New Issue</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="glass-card border-border/50 max-w-md mx-4" showCloseButton={false}>
+        {/* Hidden title for accessibility */}
+        <DialogTitle className="sr-only">Create New Post</DialogTitle>
+        
+        {/* Top header with cancel and post buttons */}
+        <div className="flex justify-between items-center mb-4">
+          <Button onClick={onClose} variant="ghost" className="glass-button rounded-full text-muted-foreground hover:text-foreground">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={!formData.location}
+            className="glass-button rounded-full bg-primary hover:bg-primary/90 text-white"
+          >
+            Post
+          </Button>
+        </div>
 
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="title" className="text-foreground">
-              Issue Title
-            </Label>
-            <Input
-              id="title"
-              placeholder="Brief description of the issue"
-              value={formData.title}
-              onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
-              className="glass-card border-border/50 bg-input/50 text-foreground"
-            />
-          </div>
-
-
           <div className="space-y-2">
             <Label htmlFor="location" className="text-foreground">
               Location
@@ -108,14 +102,6 @@ export function PostModal({ isOpen, onClose, selectedCity }: PostModalProps) {
                   alt="Upload preview"
                   className="w-full h-32 object-cover rounded-lg"
                 />
-                <Button
-                  onClick={removeImage}
-                  variant="ghost"
-                  size="sm"
-                  className="absolute top-2 right-2 glass-button bg-destructive/80 hover:bg-destructive text-white"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
               </div>
             ) : (
               <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-border/50 rounded-lg cursor-pointer glass-card hover:bg-card/50 transition-colors">
@@ -126,18 +112,6 @@ export function PostModal({ isOpen, onClose, selectedCity }: PostModalProps) {
             )}
           </div>
 
-          <div className="flex space-x-3 pt-4">
-            <Button onClick={onClose} variant="outline" className="flex-1 glass-button border-border/50 bg-transparent">
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={!formData.title || !formData.location}
-              className="flex-1 glass-button bg-primary hover:bg-primary/90"
-            >
-              Post Issue
-            </Button>
-          </div>
         </div>
       </DialogContent>
     </Dialog>
