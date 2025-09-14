@@ -156,6 +156,39 @@ export default function GovPage() {
         const f = (e as mapboxgl.MapLayerMouseEvent).features?.[0] as unknown as Feature | undefined;
         if (!f) return;
         setSelectedFeature(f as Feature);
+        // Fetch nearest department route for this issue
+        (async () => {
+          try {
+            const department = f.properties.category
+            const city = (f.properties.city || '').toUpperCase()
+            const [lon, lat] = f.geometry.coordinates
+            const qs = new URLSearchParams({
+              city,
+              department,
+              fromLon: String(lon),
+              fromLat: String(lat),
+              includeRoute: 'true',
+            })
+            const res = await fetch(`/api/departments?${qs.toString()}`)
+            const json = await res.json()
+            // Draw route if exists
+            if (json?.route && m.getSource('route')) {
+              const feature: GeoJSON.Feature<GeoJSON.LineString> = { type: 'Feature', geometry: json.route as GeoJSON.LineString, properties: {} }
+              ;(m.getSource('route') as mapboxgl.GeoJSONSource).setData(feature as unknown as GeoJSON.FeatureCollection)
+            } else if (json?.route) {
+              const feature: GeoJSON.Feature<GeoJSON.LineString> = { type: 'Feature', geometry: json.route as GeoJSON.LineString, properties: {} }
+              m.addSource('route', { type: 'geojson', data: feature as unknown as GeoJSON.FeatureCollection })
+              m.addLayer({
+                id: 'route-line',
+                type: 'line',
+                source: 'route',
+                paint: { 'line-color': '#38bdf8', 'line-width': 4, 'line-opacity': 0.85 },
+              })
+            }
+          } catch (err) {
+            console.error('route fetch failed', err)
+          }
+        })()
       });
       m.on("mouseenter", "points", () => (m.getCanvas().style.cursor = "pointer"));
       m.on("mouseleave", "points", () => (m.getCanvas().style.cursor = ""));
