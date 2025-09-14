@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { ArrowUp, ArrowDown, MessageCircle, Share } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { CommentSection } from "@/components/ui/comment-section"
+import { updateUserVote } from "@/lib/vote-persistence"
 // import { getClientId } from "@/lib/client-id"
 import type { Post } from "@/lib/types"
 
@@ -31,6 +32,10 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
     if (currentUserVote === voteType) {
       nextVote = null
     }
+
+    // Update vote persistence
+    updateUserVote(post.id, nextVote)
+
     // Optimistic UI
     setPost(prev => {
       let up = prev.upvotes

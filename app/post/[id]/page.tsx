@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react"
 import { PostDetailView } from "@/components/ui/post-detail-view"
 import type { Post } from "@/lib/types"
 import { supabase } from "@/lib/supabaseClient"
+import { getUserVoteForPost } from "@/lib/vote-persistence"
 // import { getClientId } from "@/lib/client-id"
 
 export default function PostPage() {
@@ -78,7 +79,7 @@ export default function PostPage() {
           imageUrl: Array.isArray(report.images) && report.images.length > 0 ? (report.images[0] as string) : undefined,
           upvotes: (report.upvotes as number) ?? 0,
           downvotes: (report.downvotes as number) ?? 0,
-          userVote: null,
+          userVote: getUserVoteForPost(report.id as string),
           createdAt: report.reported_time as string,
           comments: roots,
         }

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { PostCard } from "@/components/ui/post-card"
 import type { Post } from "@/lib/types"
 import { supabase } from "@/lib/supabaseClient"
+import { getUserVoteForPost, updateUserVote } from "@/lib/vote-persistence"
 
 interface FeedProps {
   selectedCity: string
@@ -36,7 +37,7 @@ export function Feed({ selectedCity }: FeedProps) {
           createdAt: r.reported_time as string,
           upvotes: (r.upvotes as number) ?? 0,
           downvotes: (r.downvotes as number) ?? 0,
-          userVote: null,
+          userVote: getUserVoteForPost(r.id as string),
           comments: [],
         }))
         // Fetch comments count in batch
@@ -68,6 +69,9 @@ export function Feed({ selectedCity }: FeedProps) {
     const current = posts.find(p => p.id === postId)
     const previousVote = current?.userVote ?? null
     const nextVote: "up" | "down" | null = previousVote === voteType ? null : voteType
+
+    // Update vote persistence
+    updateUserVote(postId, nextVote)
 
     // Optimistic UI update
     setPosts((prev) => prev.map((p) => {
