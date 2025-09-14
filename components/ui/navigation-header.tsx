@@ -10,7 +10,7 @@ interface NavigationHeaderProps {
 
 const cities = [
   { value: "SF", label: "San Francisco" },
-  { value: "NYC", label: "New York City" },
+  // { value: "NYC", label: "New York City" },
   { value: "Boston", label: "Boston" },
 ]
 
