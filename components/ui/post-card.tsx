@@ -19,7 +19,6 @@ export function PostCard({ post, onVote }: PostCardProps) {
   const handleShare = async () => {
     if (navigator.share) {
       await navigator.share({
-        title: post.title,
         text: post.description,
         url: window.location.href,
       })
@@ -43,7 +42,6 @@ export function PostCard({ post, onVote }: PostCardProps) {
           </div>
 
           <div className="mb-3">
-            <h3 className="text-white text-base font-normal">{post.title}</h3>
             <p className="text-white text-base">{post.description}</p>
           </div>
 
@@ -52,7 +50,6 @@ export function PostCard({ post, onVote }: PostCardProps) {
             <div className="mb-3 rounded-2xl overflow-hidden border border-border">
               <img 
                 src={post.imageUrl.startsWith('public/') ? post.imageUrl.replace('public/', '/') : post.imageUrl} 
-                alt={post.title} 
                 className="w-full h-64 object-cover"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;

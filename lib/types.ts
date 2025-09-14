@@ -7,7 +7,6 @@ export interface Comment {
   
   export interface Post {
     id: string
-    title: string
     description: string
     location: string
     city: string
@@ -17,6 +16,5 @@ export interface Comment {
     userVote: "up" | "down" | null
     comments: Comment[]
     createdAt: string
-    issueType: string
   }
   

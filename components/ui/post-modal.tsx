@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Upload, X } from "lucide-react"
 
 interface PostModalProps {
@@ -17,24 +16,12 @@ interface PostModalProps {
   selectedCity: string
 }
 
-const issueTypes = [
-  "Pothole",
-  "Broken Streetlight",
-  "Graffiti",
-  "Trash/Litter",
-  "Noise Complaint",
-  "Water Leak",
-  "Sidewalk Repair",
-  "Traffic Signal Issue",
-  "Other",
-]
 
 export function PostModal({ isOpen, onClose, selectedCity }: PostModalProps) {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     location: "",
-    issueType: "",
     image: null as File | null,
   })
 
@@ -54,7 +41,6 @@ export function PostModal({ isOpen, onClose, selectedCity }: PostModalProps) {
       title: "",
       description: "",
       location: "",
-      issueType: "",
       image: null,
     })
     onClose()
@@ -85,26 +71,6 @@ export function PostModal({ isOpen, onClose, selectedCity }: PostModalProps) {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="issueType" className="text-foreground">
-              Issue Type
-            </Label>
-            <Select
-              value={formData.issueType}
-              onValueChange={(value) => setFormData((prev) => ({ ...prev, issueType: value }))}
-            >
-              <SelectTrigger className="glass-card border-border/50 bg-input/50">
-                <SelectValue placeholder="Select issue type" />
-              </SelectTrigger>
-              <SelectContent className="glass-card border-border/50">
-                {issueTypes.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {type}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
           <div className="space-y-2">
             <Label htmlFor="location" className="text-foreground">
@@ -166,7 +132,7 @@ export function PostModal({ isOpen, onClose, selectedCity }: PostModalProps) {
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={!formData.title || !formData.location || !formData.issueType}
+              disabled={!formData.title || !formData.location}
               className="flex-1 glass-button bg-primary hover:bg-primary/90"
             >
               Post Issue
