@@ -4,9 +4,9 @@ import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
-import { mockPosts } from "@/lib/mock-data"
 import { PostDetailView } from "@/components/ui/post-detail-view"
 import type { Post } from "@/lib/types"
+import { supabase } from "@/lib/supabaseClient"
 
 export default function PostPage() {
   const params = useParams()
@@ -16,12 +16,83 @@ export default function PostPage() {
 
   useEffect(() => {
     const postId = params.id as string
-    
-    // Find the post in mock data (in a real app, this would be an API call)
-    const foundPost = mockPosts.find(p => p.id === postId)
-    
-    setPost(foundPost || null)
-    setLoading(false)
+    ;(async () => {
+      try {
+        // 1) Fetch report from Supabase
+        const { data: report, error: repErr } = await supabase
+          .from('report_ranked')
+          .select('id, street_address, city, description, reported_time, images')
+          .eq('id', postId)
+          .maybeSingle()
+
+        if (repErr) throw repErr
+        if (!report) {
+          setPost(null)
+          setLoading(false)
+          return
+        }
+
+        // 2) Fetch comments (flat) for this report
+        const { data: flatComments, error: comErr } = await supabase
+          .from('comments')
+          .select('id, report_id, parent_comment_id, author_name, content, created_at')
+          .eq('report_id', postId)
+          .order('created_at', { ascending: true })
+
+        if (comErr) throw comErr
+
+        // 3) Build nested comment tree
+        type CommentNode = {
+          id: string
+          author: string
+          content: string
+          createdAt: string
+          children?: CommentNode[]
+        }
+
+        const byId = new Map<string, CommentNode>()
+        const roots: CommentNode[] = []
+        for (const c of flatComments || []) {
+          byId.set(c.id as string, {
+            id: c.id as string,
+            author: (c.author_name as string) || 'Anonymous',
+            content: c.content as string,
+            createdAt: c.created_at as string,
+            children: [],
+          })
+        }
+        for (const c of flatComments || []) {
+          const node = byId.get(c.id as string)!
+          const parentId = c.parent_comment_id as string | null
+          if (parentId && byId.has(parentId)) {
+            byId.get(parentId)!.children!.push(node)
+          } else {
+            roots.push(node)
+          }
+        }
+
+        // 4) Map report to Post shape expected by PostDetailView
+        const mapped: Post = {
+          id: report.id as string,
+          description: (report.description as string) || '',
+          location: (report.street_address as string) || '',
+          city: (report.city as string) as Post['city'],
+          imageUrl: Array.isArray(report.images) && report.images.length > 0 ? (report.images[0] as string) : undefined,
+          upvotes: 0,
+          downvotes: 0,
+          userVote: null,
+          createdAt: report.reported_time as string,
+          comments: roots,
+        }
+
+        setPost(mapped)
+      } catch (e) {
+        console.error('Failed to load post', e)
+        setPost(null)
+      } finally {
+        setLoading(false)
+      }
+    })()
   }, [params.id])
 
   // Vote handling is now managed internally by PostDetailView component

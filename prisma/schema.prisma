@@ -58,36 +58,19 @@ model ReportRanked {
   @@map("report_ranked")
 }
 
-
-// Minimal social: posts and comments
-model Post {
-  id          String   @id @db.Uuid @default(dbgenerated("extensions.gen_random_uuid()"))
-  description String
-  location    String
-  city        City
-  image_url   String?
-  created_at  DateTime @default(now()) @db.Timestamptz(6)
-
-  comments    Comment[]
-
-  @@map("posts")
-  @@index([city, created_at(sort: Desc)], map: "idx_posts_city_created")
-}
-
+// Comments referencing report_ranked
 model Comment {
   id                String    @id @db.Uuid @default(dbgenerated("extensions.gen_random_uuid()"))
-  post_id           String    @db.Uuid
+  report_id         String    @db.Uuid
   parent_comment_id String?   @db.Uuid
   author_name       String
   content           String
   created_at        DateTime  @default(now()) @db.Timestamptz(6)
-
-  post     Post     @relation(fields: [post_id], references: [id], onDelete: Cascade)
-  parent   Comment? @relation("CommentReplies", fields: [parent_comment_id], references: [id], onDelete: Cascade)
-  replies  Comment[] @relation("CommentReplies")
+  parent   Comment?     @relation("CommentReplies", fields: [parent_comment_id], references: [id], onDelete: Cascade)
+  replies  Comment[]    @relation("CommentReplies")
 
   @@map("comments")
-  @@index([post_id, created_at], map: "idx_comments_post_created")
+  @@index([report_id, created_at], map: "idx_comments_post_created")
   @@index([parent_comment_id], map: "idx_comments_parent")
 }
 

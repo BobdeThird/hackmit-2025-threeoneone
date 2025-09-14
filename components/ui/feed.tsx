@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { PostCard } from "@/components/ui/post-card"
-import { mockPosts } from "@/lib/mock-data"
-import { calculatePostVoteData, handleVoteChange } from "@/lib/vote-persistence"
 import type { Post } from "@/lib/types"
+import { supabase } from "@/lib/supabaseClient"
 
 interface FeedProps {
   selectedCity: string
@@ -15,61 +14,64 @@ export function Feed({ selectedCity }: FeedProps) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Simulate loading and filter by city
     setLoading(true)
-    setTimeout(() => {
-      const filteredPosts = mockPosts.filter((post) => post.city === selectedCity)
-      
-      // Apply user's stored votes to each post
-      const postsWithUserVotes = filteredPosts.map(post => {
-        const voteData = calculatePostVoteData(
-          post.id, 
-          post.upvotes, 
-          post.downvotes, 
-          post.userVote
-        )
-        
-        return {
-          ...post,
-          upvotes: voteData.upvotes,
-          downvotes: voteData.downvotes,
-          userVote: voteData.userVote
-        }
-      })
-      
-      setPosts(postsWithUserVotes)
-      setLoading(false)
-    }, 500)
+    ;(async () => {
+      try {
+        // Map UI city to DB enum
+        const dbCity = selectedCity === 'SF' ? 'SF' : selectedCity === 'NYC' ? 'NYC' : 'BOSTON'
+        const { data, error } = await supabase
+          .from('report_ranked')
+          .select('id, street_address, description, reported_time, images, city')
+          .eq('city', dbCity)
+          .order('reported_time', { ascending: false })
+          .limit(100)
+        if (error) throw error
+
+        const mapped: Post[] = (data || []).map((r) => ({
+          id: r.id as string,
+          description: (r.description as string) || '',
+          location: (r.street_address as string) || '',
+          city: (r.city as string) as Post['city'],
+          imageUrl: Array.isArray(r.images) && r.images.length > 0 ? (r.images[0] as string) : undefined,
+          createdAt: r.reported_time as string,
+          upvotes: 0,
+          downvotes: 0,
+          userVote: null,
+          comments: [],
+        }))
+        setPosts(mapped)
+      } catch (e) {
+        console.error('Failed to load feed', e)
+        setPosts([])
+      } finally {
+        setLoading(false)
+      }
+    })()
   }, [selectedCity])
 
   const handleVote = (postId: string, voteType: "up" | "down") => {
-    setPosts((prevPosts) =>
-      prevPosts.map((post) => {
-        if (post.id === postId) {
-          // Handle the vote change and persistence
-          handleVoteChange(postId, voteType, post.userVote)
-          
-          // Recalculate vote data based on the original mock data and new user vote
-          const originalPost = mockPosts.find(p => p.id === postId)
-          if (!originalPost) return post
-          
-          const voteData = calculatePostVoteData(
-            postId,
-            originalPost.upvotes,
-            originalPost.downvotes,
-            originalPost.userVote
-          )
-
-          return {
-            ...post,
-            upvotes: voteData.upvotes,
-            downvotes: voteData.downvotes,
-            userVote: voteData.userVote
-          }
+    setPosts((prev) => prev.map((p) => {
+      if (p.id !== postId) return p
+      // Optimistic toggle
+      let up = p.upvotes
+      let down = p.downvotes
+      let userVote = p.userVote
+      if (userVote === voteType) {
+        // undo
+        if (voteType === 'up') up = Math.max(0, up - 1); else down = Math.max(0, down - 1)
+        userVote = null
+      } else {
+        if (voteType === 'up') {
+          up = up + 1
+          if (userVote === 'down') down = Math.max(0, down - 1)
+        } else {
+          down = down + 1
+          if (userVote === 'up') up = Math.max(0, up - 1)
         }
-        return post
-      }),
-    )
+        userVote = voteType
+      }
+      return { ...p, upvotes: up, downvotes: down, userVote }
+    }))
   }
 
   if (loading) {
