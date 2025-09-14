@@ -162,7 +162,7 @@ export function Feed({ selectedCity }: FeedProps) {
       const json = await res.json()
       if (!res.ok) throw new Error(json?.error || 'vote failed')
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, upvotes: (json.upvotes ?? p.upvotes) as number, downvotes: (json.downvotes ?? p.downvotes) as number } : p))
-    } catch (e) {
+    } catch {
       // On failure, refetch just this post's counts
       try {
         const { data } = await supabase
@@ -207,7 +207,7 @@ export function Feed({ selectedCity }: FeedProps) {
 
       {!hasMore && posts.length > 0 && (
         <div className="text-center py-8 text-muted-foreground">
-          You've reached the end of the feed
+          You&apos;ve reached the end of the feed
         </div>
       )}
     </div>

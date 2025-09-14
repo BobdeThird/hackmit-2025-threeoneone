@@ -64,7 +64,7 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
     } catch {
       // Revert on failure by reloading from server
       try {
-        const resp = await fetch(`/api/reports?limit=1&status=&department=&city=${encodeURIComponent(post.city.toLowerCase())}`)
+        await fetch(`/api/reports?limit=1&status=&department=&city=${encodeURIComponent(post.city.toLowerCase())}`)
         // ignore; in a real app re-fetch the single post
       } catch {}
     }
