@@ -93,7 +93,7 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
           <div className="w-full">
             {/* Header info */}
             <div className="flex items-center space-x-2 text-sm mb-3">
-              <span className="font-bold text-white text-lg">{post.location}</span>
+              <span className="font-bold text-lg" style={{ color: '#e1e1e1' }}>{post.location}</span>
               <span className="text-muted-foreground">·</span>
               <span className="text-muted-foreground">
                 {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
@@ -101,7 +101,7 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
             </div>
 
             <div className="mb-4">
-              <p className="text-white text-lg leading-relaxed">{post.description}</p>
+              <p className="text-lg leading-relaxed" style={{ color: '#e1e1e1' }}>{post.description}</p>
             </div>
 
             {/* Image if present */}
@@ -136,7 +136,7 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
                 >
                   <ArrowUp className="h-5 w-5 mr-1" />
                   <span className={`text-sm font-medium ${
-                    post.userVote === "up" ? "text-green-500" : "text-white"
+                    post.userVote === "up" ? "text-green-500" : "text-muted-foreground"
                   }`}>{post.upvotes}</span>
                 </Button>
               </div>
@@ -155,7 +155,7 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
                 >
                   <ArrowDown className="h-5 w-5 mr-1" />
                   <span className={`text-sm font-medium ${
-                    post.userVote === "down" ? "text-red-500" : "text-white"
+                    post.userVote === "down" ? "text-red-500" : "text-muted-foreground"
                   }`}>{post.downvotes}</span>
                 </Button>
               </div>
@@ -169,7 +169,7 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
                   className="twitter-button h-10 px-3 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
                 >
                   <MessageCircle className="h-5 w-5 mr-1" />
-                  <span className="text-sm font-medium text-white">{post.comments.length}</span>
+                  <span className="text-sm font-medium text-muted-foreground">{post.comments.length}</span>
                 </Button>
               </div>
 
@@ -182,7 +182,7 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
                   className="twitter-button h-10 px-3 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
                 >
                   <Share className="h-5 w-5 mr-1" />
-                  <span className="text-sm font-medium text-white">Share</span>
+                  <span className="text-sm font-medium text-muted-foreground">Share</span>
                 </Button>
               </div>
             </div>

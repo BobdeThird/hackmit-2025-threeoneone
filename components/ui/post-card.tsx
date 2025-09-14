@@ -51,7 +51,7 @@ export function PostCard({ post, onVote }: PostCardProps) {
         <div className="w-full">
           {/* Header info */}
           <div className="flex items-center space-x-2 text-sm">
-            <span className="font-bold text-white">{post.location}</span>
+            <span className="font-bold text-base" style={{ color: '#e1e1e1' }}>{post.location}</span>
             <span className="text-muted-foreground">·</span>
             <span className="text-muted-foreground">
               {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
@@ -59,7 +59,7 @@ export function PostCard({ post, onVote }: PostCardProps) {
           </div>
 
           <div className="mb-3">
-            <p className="text-white text-base">{post.description}</p>
+            <p className="text-base" style={{ color: '#e1e1e1' }}>{post.description}</p>
           </div>
 
           {/* Image if present */}
@@ -96,7 +96,7 @@ export function PostCard({ post, onVote }: PostCardProps) {
                 <ArrowUp className="h-4 w-4" />
               </Button>
               <span className={`text-sm font-medium ml-1 ${
-                post.userVote === "up" ? "text-green-500" : "text-white"
+                post.userVote === "up" ? "text-green-500" : "text-muted-foreground"
               }`}>{post.upvotes}</span>
             </div>
 
@@ -118,7 +118,7 @@ export function PostCard({ post, onVote }: PostCardProps) {
                 <ArrowDown className="h-4 w-4" />
               </Button>
               <span className={`text-sm font-medium ml-1 ${
-                post.userVote === "down" ? "text-red-500" : "text-white"
+                post.userVote === "down" ? "text-red-500" : "text-muted-foreground"
               }`}>{post.downvotes}</span>
             </div>
 
@@ -135,7 +135,7 @@ export function PostCard({ post, onVote }: PostCardProps) {
               >
                 <MessageCircle className="h-4 w-4" />
               </Button>
-              <span className="text-sm font-medium text-white ml-1">{post.comments.length}</span>
+              <span className="text-sm font-medium text-muted-foreground ml-1">{post.comments.length}</span>
             </div>
 
             {/* Share */}
