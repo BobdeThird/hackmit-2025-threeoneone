@@ -1,0 +1,61 @@
+// Prisma schema mapping to Supabase Postgres
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Postgres enum: public.department
+enum Department {
+  PUBLIC_SAFETY                 @map("Public Safety")
+  PUBLIC_WORKS_TRANSPORTATION   @map("Public Works & Transportation")
+  SANITATION_ENVIRONMENT        @map("Sanitation & Environment")
+  UTILITIES_WATER_POWER         @map("Utilities (Water/Power)")
+  HOUSING_BUILDINGS_CODE        @map("Housing, Buildings & Code")
+  PARKS_RECREATION              @map("Parks & Recreation")
+  HEALTH_HUMAN_SERVICES         @map("Health & Human Services")
+  ANIMAL_SERVICES               @map("Animal Services")
+
+  @@map("department")
+}
+
+// Postgres enum: public.city
+enum City {
+  NYC
+  BOSTON
+  SF
+
+  @@map("city")
+}
+
+// Table: public.report_ranked
+model ReportRanked {
+  id             String      @id @db.Uuid @default(dbgenerated("extensions.gen_random_uuid()"))
+
+  street_address String
+  latitude       Float       @db.DoublePrecision
+  longitude      Float       @db.DoublePrecision
+  images         String[]    @db.Text @default([])
+  reported_time  DateTime    @db.Timestamptz(6)
+  description    String
+  native_id      String?
+  status         String?
+  source_scraper String
+
+  ranking        Int
+  summary        String
+  estimated_time Int
+  department     Department
+  city           City?
+
+  created_at     DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime    @default(now()) @db.Timestamptz(6)
+
+  @@map("report_ranked")
+}
+
+
