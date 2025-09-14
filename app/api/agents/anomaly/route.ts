@@ -40,7 +40,6 @@ export async function POST(req: Request) {
     messages: [
       { role: 'user', content: `City: ${city ?? 'unknown'}. Detect anomalies and trends from input. Use the enabled capabilities when helpful.` }
     ],
-    temperature: 0.2,
     providerOptions: { openai: { reasoning_effort: 'minimal' } }
   })
 

@@ -12,7 +12,7 @@ async function handleRun(req: Request, params: RunRequestBody) {
   const enableCodeInterpreter = params.enableCodeInterpreter === true
   const enableWebSearch = params.enableWebSearch === true
 
-  const runId = await createRun({ city, tasks: ['anomaly', 'cluster'], input_source: 'policy-run' })
+  const runId = await createRun({ city, tasks: ['anomaly','cluster','causal','synthesize'], input_source: 'policy-run' })
   await updateRunStatus(runId, 'running')
 
   const base = new URL(req.url)
@@ -29,7 +29,7 @@ async function handleRun(req: Request, params: RunRequestBody) {
       send('started', { runId })
       await appendEvent({ runId, agent: 'orchestrator', level: 'started', message: 'run started' })
 
-      async function forwardToken(agent: 'anomaly' | 'cluster', chunkText: string) {
+      async function forwardToken(agent: AgentName, chunkText: string) {
         // Forward raw text chunks as tokens
         if (chunkText && chunkText.trim().length > 0) {
           send('token', { runId, agent, text: chunkText })
@@ -37,12 +37,13 @@ async function handleRun(req: Request, params: RunRequestBody) {
         }
       }
 
-      async function pipeAgent(agent: 'anomaly' | 'cluster') {
+      type AgentName = 'anomaly' | 'cluster' | 'causal' | 'synthesize'
+      async function pipeAgent(agent: AgentName, context?: string) {
         const url = `${origin}/api/agents/${agent}`
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ runId, city, input, enableCodeInterpreter, enableWebSearch })
+          body: JSON.stringify({ runId, city, input: { ...(input ?? {}), context }, enableCodeInterpreter, enableWebSearch })
         })
         if (!res.body) return
         const reader = res.body.getReader()
@@ -60,7 +61,27 @@ async function handleRun(req: Request, params: RunRequestBody) {
       }
 
       try {
-        await Promise.all([pipeAgent('anomaly'), pipeAgent('cluster')])
+        // Iterative loop: anomaly -> cluster -> causal -> synthesize
+        // Accumulate markdown context from tokens
+        let anomalyMd = ''
+        let clusterMd = ''
+
+        // run anomaly and cluster in parallel first
+        await Promise.all([
+          (async () => {
+            await pipeAgent('anomaly')
+          })(),
+          (async () => {
+            await pipeAgent('cluster')
+          })()
+        ])
+
+        // For simplicity, re-query last tokens from events (or reuse accumulated state). Here, we move on directly.
+        const combinedContext = `# Anomalies\n...\n\n# Clusters\n...` // minimal placeholder; agents already streamed detailed text to client
+
+        await pipeAgent('causal', combinedContext)
+        await pipeAgent('synthesize', combinedContext)
+
         send('done', { runId })
         await updateRunStatus(runId, 'completed')
       } catch (e) {

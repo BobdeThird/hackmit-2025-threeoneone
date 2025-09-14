@@ -70,18 +70,18 @@ export default function PolicyPage() {
         <div className="text-sm text-gray-600">Run: {runId}</div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {['anomaly','cluster'].map((agent) => {
+        {['anomaly','cluster','causal','synthesize'].map((agent) => {
           const parts = grouped.find(([a]) => a === agent)?.[1] ?? []
           const content = parts.join('')
-          const isActive = running && (!!content || agent === 'anomaly' || agent === 'cluster')
+          const isActive = running && (!!content || ['anomaly','cluster','causal','synthesize'].includes(agent))
           return (
             <div key={agent} className="border rounded p-3">
               <div className="flex items-center justify-between mb-2">
                 <div className="font-medium">{agent}</div>
                 <div className={`text-xs ${isActive ? 'text-green-600' : 'text-gray-500'}`}>{isActive ? 'streaming' : 'idle'}</div>
               </div>
-              <div className="whitespace-pre-wrap text-sm leading-6 min-h-[8rem]">
-                {content || 'Waiting for output…'}
+              <div className="prose prose-sm max-w-none">
+                {content ? <div dangerouslySetInnerHTML={{ __html: content.replace(/\n/g, '<br/>') }} /> : <div className="text-sm text-gray-500">Waiting for output…</div>}
               </div>
             </div>
           )
