@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "311 Social - City Issues Platform",
+  title: "ThreeOneOne - City Issues Platform",
   description: "Report and discuss city issues with your community",
   generator: "v0.app",
 }
