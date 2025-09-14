@@ -30,8 +30,8 @@ export function PostCard({ post, onVote }: PostCardProps) {
   }
 
   return (
-    <Card className="twitter-card border-0 rounded-none border-b border-border">
-      <div className="px-4 py-3">
+    <Card className="twitter-card border-0 rounded-none border-b border-border py-0">
+      <div className="px-4 py-2">
         <div className="w-full">
           {/* Header info */}
           <div className="flex items-center space-x-2 text-sm">
