@@ -51,6 +51,8 @@ model ReportRanked {
   estimated_time Int
   department     Department
   city           City?
+  upvotes        Int?
+  downvotes      Int?
 
   created_at     DateTime    @default(now()) @db.Timestamptz(6)
   updated_at     DateTime    @default(now()) @db.Timestamptz(6)

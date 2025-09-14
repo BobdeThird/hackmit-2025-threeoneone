@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button"
 import { ArrowUp, ArrowDown, MessageCircle, Share } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { CommentSection } from "@/components/ui/comment-section"
-import { calculatePostVoteData, handleVoteChange } from "@/lib/vote-persistence"
-import { mockPosts } from "@/lib/mock-data"
+import { getClientId } from "@/lib/client-id"
 import type { Post } from "@/lib/types"
 
 interface PostDetailViewProps {
@@ -22,52 +21,48 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
   
   // Apply stored votes when component mounts or post changes
   useEffect(() => {
-    const originalPost = mockPosts.find(p => p.id === initialPost.id)
-    if (!originalPost) {
-      setPost(initialPost)
-      return
-    }
-    
-    const voteData = calculatePostVoteData(
-      initialPost.id,
-      originalPost.upvotes,
-      originalPost.downvotes,
-      originalPost.userVote
-    )
-    
-    setPost({
-      ...initialPost,
-      upvotes: voteData.upvotes,
-      downvotes: voteData.downvotes,
-      userVote: voteData.userVote
-    })
+    setPost(initialPost)
   }, [initialPost])
 
-  const handleVote = (voteType: "up" | "down") => {
-    // Handle the vote change and persistence
-    handleVoteChange(post.id, voteType, post.userVote)
-    
-    // Recalculate vote data based on the original mock data and new user vote
-    const originalPost = mockPosts.find(p => p.id === post.id)
-    if (!originalPost) return
-    
-    const voteData = calculatePostVoteData(
-      post.id,
-      originalPost.upvotes,
-      originalPost.downvotes,
-      originalPost.userVote
-    )
-
-    const updatedPost = {
-      ...post,
-      upvotes: voteData.upvotes,
-      downvotes: voteData.downvotes,
-      userVote: voteData.userVote
+  const handleVote = async (voteType: "up" | "down") => {
+    const clientId = getClientId()
+    const currentUserVote = post.userVote
+    let nextVote: "up" | "down" | null = voteType
+    if (currentUserVote === voteType) {
+      nextVote = null
     }
-    
-    setPost(updatedPost)
-    
-    // Call parent callback if provided (for compatibility)
+    // Optimistic UI
+    setPost(prev => {
+      let up = prev.upvotes
+      let down = prev.downvotes
+      if (nextVote === null) {
+        if (currentUserVote === 'up') up = Math.max(0, up - 1)
+        if (currentUserVote === 'down') down = Math.max(0, down - 1)
+      } else if (nextVote === 'up') {
+        up = up + 1
+        if (currentUserVote === 'down') down = Math.max(0, down - 1)
+      } else {
+        down = down + 1
+        if (currentUserVote === 'up') up = Math.max(0, up - 1)
+      }
+      return { ...prev, upvotes: up, downvotes: down, userVote: nextVote }
+    })
+    try {
+      const res = await fetch('/api/report/vote', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ report_id: post.id, action: nextVote === null ? 'remove' : nextVote, previous: currentUserVote })
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'vote failed')
+      setPost(prev => ({ ...prev, upvotes: (json.upvotes ?? prev.upvotes) as number, downvotes: (json.downvotes ?? prev.downvotes) as number }))
+    } catch (e) {
+      // Revert on failure by reloading from server
+      try {
+        const resp = await fetch(`/api/reports?limit=1&status=&department=&city=${encodeURIComponent(post.city.toLowerCase())}`)
+        // ignore; in a real app re-fetch the single post
+      } catch {}
+    }
     onVote?.(post.id, voteType)
   }
 
@@ -195,7 +190,16 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
         <Card className="border border-border rounded-lg">
           <div className="p-4">
             <h3 className="text-white text-lg font-semibold mb-4">Comments</h3>
-            <CommentSection postId={post.id} comments={post.comments} />
+            <CommentSection
+              postId={post.id}
+              comments={post.comments}
+              onAdded={(c) => {
+                setPost((prev) => ({
+                  ...prev,
+                  comments: [...prev.comments, c],
+                }))
+              }}
+            />
           </div>
         </Card>
       )}

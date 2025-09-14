@@ -11,6 +11,7 @@ import styles from "./page.module.css"
 export default function HomePage() {
   const [selectedCity, setSelectedCity] = useState("SF")
   const [isPostModalOpen, setIsPostModalOpen] = useState(false)
+  const [feedReloadToken, setFeedReloadToken] = useState(0)
 
   return (
     <div className={`min-h-screen bg-background ${styles.userPage}`}>
@@ -22,7 +23,7 @@ export default function HomePage() {
       </div>
 
       {/* Main feed */}
-      <Feed selectedCity={selectedCity} />
+      <Feed selectedCity={selectedCity} key={`${selectedCity}-${feedReloadToken}`} />
       
       {/* Fixed button positioned within feed boundaries */}
       <Button
@@ -37,7 +38,12 @@ export default function HomePage() {
       </Button>
 
       {/* Post creation modal */}
-      <PostModal isOpen={isPostModalOpen} onClose={() => setIsPostModalOpen(false)} selectedCity={selectedCity} />
+      <PostModal
+        isOpen={isPostModalOpen}
+        onClose={() => setIsPostModalOpen(false)}
+        selectedCity={selectedCity}
+        onPosted={() => setFeedReloadToken((t) => t + 1)}
+      />
     </div>
   )
 }

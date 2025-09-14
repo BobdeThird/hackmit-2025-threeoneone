@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react"
 import { PostDetailView } from "@/components/ui/post-detail-view"
 import type { Post } from "@/lib/types"
 import { supabase } from "@/lib/supabaseClient"
+import { getClientId } from "@/lib/client-id"
 
 export default function PostPage() {
   const params = useParams()
@@ -21,7 +22,7 @@ export default function PostPage() {
         // 1) Fetch report from Supabase
         const { data: report, error: repErr } = await supabase
           .from('report_ranked')
-          .select('id, street_address, city, description, reported_time, images')
+          .select('id, street_address, city, description, reported_time, images, upvotes, downvotes')
           .eq('id', postId)
           .maybeSingle()
 
@@ -32,14 +33,11 @@ export default function PostPage() {
           return
         }
 
-        // 2) Fetch comments (flat) for this report
-        const { data: flatComments, error: comErr } = await supabase
-          .from('comments')
-          .select('id, report_id, parent_comment_id, author_name, content, created_at')
-          .eq('report_id', postId)
-          .order('created_at', { ascending: true })
-
-        if (comErr) throw comErr
+        // 2) Fetch comments via API (bypass RLS)
+        const comRes = await fetch(`/api/comments?report_id=${encodeURIComponent(postId)}`, { cache: 'no-store' })
+        const comJson = await comRes.json()
+        if (!comRes.ok) throw new Error(comJson?.error || 'comments failed')
+        const flatComments = comJson.items
 
         // 3) Build nested comment tree
         type CommentNode = {
@@ -78,8 +76,8 @@ export default function PostPage() {
           location: (report.street_address as string) || '',
           city: (report.city as string) as Post['city'],
           imageUrl: Array.isArray(report.images) && report.images.length > 0 ? (report.images[0] as string) : undefined,
-          upvotes: 0,
-          downvotes: 0,
+          upvotes: (report.upvotes as number) ?? 0,
+          downvotes: (report.downvotes as number) ?? 0,
           userVote: null,
           createdAt: report.reported_time as string,
           comments: roots,

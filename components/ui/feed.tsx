@@ -21,7 +21,7 @@ export function Feed({ selectedCity }: FeedProps) {
         const dbCity = selectedCity === 'SF' ? 'SF' : selectedCity === 'NYC' ? 'NYC' : 'BOSTON'
         const { data, error } = await supabase
           .from('report_ranked')
-          .select('id, street_address, description, reported_time, images, city')
+          .select('id, street_address, description, reported_time, images, city, upvotes, downvotes')
           .eq('city', dbCity)
           .order('reported_time', { ascending: false })
           .limit(100)
@@ -34,8 +34,8 @@ export function Feed({ selectedCity }: FeedProps) {
           city: (r.city as string) as Post['city'],
           imageUrl: Array.isArray(r.images) && r.images.length > 0 ? (r.images[0] as string) : undefined,
           createdAt: r.reported_time as string,
-          upvotes: 0,
-          downvotes: 0,
+          upvotes: (r.upvotes as number) ?? 0,
+          downvotes: (r.downvotes as number) ?? 0,
           userVote: null,
           comments: [],
         }))
@@ -49,29 +49,49 @@ export function Feed({ selectedCity }: FeedProps) {
     })()
   }, [selectedCity])
 
-  const handleVote = (postId: string, voteType: "up" | "down") => {
+  const handleVote = async (postId: string, voteType: "up" | "down") => {
+    const current = posts.find(p => p.id === postId)
+    const previousVote = current?.userVote ?? null
+    const nextVote: "up" | "down" | null = previousVote === voteType ? null : voteType
+
+    // Optimistic UI update
     setPosts((prev) => prev.map((p) => {
       if (p.id !== postId) return p
-      // Optimistic toggle
       let up = p.upvotes
       let down = p.downvotes
-      let userVote = p.userVote
-      if (userVote === voteType) {
-        // undo
-        if (voteType === 'up') up = Math.max(0, up - 1); else down = Math.max(0, down - 1)
-        userVote = null
+      if (nextVote === null) {
+        if (previousVote === 'up') up = Math.max(0, up - 1)
+        if (previousVote === 'down') down = Math.max(0, down - 1)
+      } else if (nextVote === 'up') {
+        up = up + 1
+        if (previousVote === 'down') down = Math.max(0, down - 1)
       } else {
-        if (voteType === 'up') {
-          up = up + 1
-          if (userVote === 'down') down = Math.max(0, down - 1)
-        } else {
-          down = down + 1
-          if (userVote === 'up') up = Math.max(0, up - 1)
-        }
-        userVote = voteType
+        down = down + 1
+        if (previousVote === 'up') up = Math.max(0, up - 1)
       }
-      return { ...p, upvotes: up, downvotes: down, userVote }
+      return { ...p, upvotes: up, downvotes: down, userVote: nextVote }
     }))
+
+    try {
+      const res = await fetch('/api/report/vote', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ report_id: postId, action: nextVote === null ? 'remove' : nextVote, previous: previousVote })
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'vote failed')
+      setPosts(prev => prev.map(p => p.id === postId ? { ...p, upvotes: (json.upvotes ?? p.upvotes) as number, downvotes: (json.downvotes ?? p.downvotes) as number } : p))
+    } catch (e) {
+      // On failure, refetch just this post's counts
+      try {
+        const { data } = await supabase
+          .from('report_ranked')
+          .select('id, upvotes, downvotes')
+          .eq('id', postId)
+          .single()
+        if (data) setPosts(prev => prev.map(p => p.id === postId ? { ...p, upvotes: (data.upvotes as number) ?? 0, downvotes: (data.downvotes as number) ?? 0 } : p))
+      } catch {}
+    }
   }
 
   if (loading) {

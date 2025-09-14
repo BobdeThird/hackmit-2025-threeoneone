@@ -4,21 +4,23 @@ import type React from "react"
 
 import { useState } from "react"
 import Image from "next/image"
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Upload } from "lucide-react"
+import { supabase } from "@/lib/supabaseClient"
 
 interface PostModalProps {
   isOpen: boolean
   onClose: () => void
   selectedCity: string
+  onPosted?: () => void
 }
 
 
-export function PostModal({ isOpen, onClose, selectedCity }: PostModalProps) {
+export function PostModal({ isOpen, onClose, selectedCity, onPosted }: PostModalProps) {
   const [formData, setFormData] = useState({
     description: "",
     location: "",
@@ -32,25 +34,43 @@ export function PostModal({ isOpen, onClose, selectedCity }: PostModalProps) {
     }
   }
 
-  const handleSubmit = () => {
-    // Here you would typically submit to your backend
-    console.log("Submitting post:", formData)
+  const handleSubmit = async () => {
+    try {
+      let imageUrl: string | undefined
+      if (formData.image) {
+        const body = new FormData()
+        body.append('file', formData.image)
+        const resUp = await fetch('/api/storage/upload', { method: 'POST', body })
+        const jsonUp = await resUp.json()
+        if (!resUp.ok) throw new Error(jsonUp?.error || 'upload failed')
+        imageUrl = jsonUp.url as string
+      }
 
-    // Reset form and close modal
-    setFormData({
-      description: "",
-      location: "",
-      image: null,
-    })
-    onClose()
+      const payload = {
+        description: formData.description,
+        street_address: formData.location,
+        city: selectedCity.toUpperCase(),
+        imageUrl,
+      }
+      const res = await fetch('/api/report/create', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'create failed')
+
+      setFormData({ description: "", location: "", image: null })
+      onPosted?.()
+      onClose()
+    } catch (e) {
+      console.error('post create failed', e)
+    }
   }
 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="glass-card border-border/50 max-w-md mx-4" showCloseButton={false}>
+      <DialogContent className="glass-card border-border/50 max-w-md mx-4" showCloseButton={false} aria-describedby={undefined}>
         {/* Hidden title for accessibility */}
         <DialogTitle className="sr-only">Create New Post</DialogTitle>
+        <DialogDescription className="sr-only">Fill out the form to create a new report.</DialogDescription>
         
         {/* Top header with cancel and post buttons */}
         <div className="flex justify-between items-center mb-4">

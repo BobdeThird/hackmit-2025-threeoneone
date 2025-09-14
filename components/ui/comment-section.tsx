@@ -5,28 +5,45 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { formatDistanceToNow } from "date-fns"
 import type { Comment } from "@/lib/types"
+// Using API routes to bypass RLS via server admin client
 
 interface CommentSectionProps {
   postId: string
   comments: Comment[]
+  onAdded?: (comment: Comment) => void
 }
 
-export function CommentSection({ comments }: CommentSectionProps) {
+export function CommentSection({ postId, comments, onAdded }: CommentSectionProps) {
   const [newComment, setNewComment] = useState("")
   const [localComments, setLocalComments] = useState(comments)
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmitComment = () => {
-    if (!newComment.trim()) return
+  const handleSubmitComment = async () => {
+    if (!newComment.trim() || submitting) return
+    setSubmitting(true)
+    try {
+      const content = newComment.trim()
+      const author = "Anonymous User"
 
-    const comment: Comment = {
-      id: Date.now().toString(),
-      author: "Anonymous User",
-      content: newComment,
-      createdAt: new Date().toISOString(),
+      const res = await fetch('/api/comments', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ report_id: postId, content, author_name: author }) })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'comment failed')
+      const item = json.item
+      const saved: Comment = {
+        id: String(item.id),
+        author: (item.author_name as string) || author,
+        content: item.content as string,
+        createdAt: item.created_at as string,
+      }
+
+      setLocalComments([...localComments, saved])
+      onAdded?.(saved)
+      setNewComment("")
+    } catch (err) {
+      console.error('Failed to submit comment', err)
+    } finally {
+      setSubmitting(false)
     }
-
-    setLocalComments([...localComments, comment])
-    setNewComment("")
   }
 
   return (
@@ -55,11 +72,11 @@ export function CommentSection({ comments }: CommentSectionProps) {
           <div className="flex justify-end">
             <Button
               onClick={handleSubmitComment}
-              disabled={!newComment.trim()}
+              disabled={!newComment.trim() || submitting}
               className="glass-button bg-primary hover:bg-primary/90"
               size="sm"
             >
-              Post Comment
+              {submitting ? 'Posting...' : 'Post Comment'}
             </Button>
           </div>
         </div>
