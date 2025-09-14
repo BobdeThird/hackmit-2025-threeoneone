@@ -18,6 +18,7 @@ interface PostCardProps {
 export function PostCard({ post, onVote }: PostCardProps) {
   const router = useRouter()
   const [showComments, setShowComments] = useState(false)
+  const [commentCount, setCommentCount] = useState<number>(post.commentsCount ?? post.comments.length)
 
   const handlePostClick = () => {
     router.push(`/post/${post.id}`)
@@ -135,7 +136,7 @@ export function PostCard({ post, onVote }: PostCardProps) {
               >
                 <MessageCircle className="h-4 w-4" />
               </Button>
-              <span className="text-sm font-medium text-white ml-1">{post.comments.length}</span>
+              <span className="text-sm font-medium text-white ml-1">{commentCount}</span>
             </div>
 
             {/* Share */}
@@ -157,7 +158,19 @@ export function PostCard({ post, onVote }: PostCardProps) {
       </div>
 
       {/* Comments section */}
-      {showComments && <CommentSection postId={post.id} comments={post.comments} />}
+      {showComments && (
+        <div
+          onClick={stopPropagation}
+          onMouseDown={stopPropagation}
+          onMouseUp={stopPropagation}
+        >
+          <CommentSection
+            postId={post.id}
+            comments={post.comments}
+            onAdded={() => setCommentCount((c) => c + 1)}
+          />
+        </div>
+      )}
     </Card>
   )
 }

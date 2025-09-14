@@ -15,6 +15,7 @@ export interface Comment {
     downvotes: number
     userVote: "up" | "down" | null
     comments: Comment[]
+    commentsCount?: number
     createdAt: string
   }
   

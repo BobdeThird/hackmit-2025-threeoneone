@@ -27,7 +27,7 @@ export function Feed({ selectedCity }: FeedProps) {
           .limit(100)
         if (error) throw error
 
-        const mapped: Post[] = (data || []).map((r) => ({
+        let mapped: Post[] = (data || []).map((r) => ({
           id: r.id as string,
           description: (r.description as string) || '',
           location: (r.street_address as string) || '',
@@ -39,6 +39,21 @@ export function Feed({ selectedCity }: FeedProps) {
           userVote: null,
           comments: [],
         }))
+        // Fetch comments count in batch
+        try {
+          const ids = mapped.map(m => m.id)
+          if (ids.length > 0) {
+            const res = await fetch('/api/comments/count', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ ids }),
+            })
+            const json = await res.json()
+            if (res.ok && json?.counts) {
+              mapped = mapped.map(m => ({ ...m, commentsCount: (json.counts[m.id] as number) ?? 0 }))
+            }
+          }
+        } catch {}
         setPosts(mapped)
       } catch (e) {
         console.error('Failed to load feed', e)
