@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { ArrowUp, ArrowDown, MessageCircle, Share } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { CommentSection } from "@/components/ui/comment-section"
+import { ImagePreview } from "@/components/ui/image-preview"
 import type { Post } from "@/lib/types"
 
 interface PostCardProps {
@@ -65,16 +66,23 @@ export function PostCard({ post, onVote }: PostCardProps) {
 
           {/* Image if present */}
           {post.imageUrl && (
-            <div className="mb-3 rounded-2xl overflow-hidden border border-border relative h-64">
-              <Image 
-                src={post.imageUrl.startsWith('public/') ? post.imageUrl.replace('public/', '/') : post.imageUrl} 
+            <div className="mb-3" onClick={stopPropagation}>
+              <ImagePreview
+                src={post.imageUrl.startsWith('public/') ? post.imageUrl.replace('public/', '/') : post.imageUrl}
                 alt={`Image for ${post.location} - ${post.description.substring(0, 100)}...`}
-                fill
-                className="object-cover"
-                onError={() => {
-                  // Handle error with a fallback
-                }}
-              />
+              >
+                <div className="rounded-2xl overflow-hidden border border-border relative h-64 cursor-pointer hover:opacity-90 transition-opacity">
+                  <Image 
+                    src={post.imageUrl.startsWith('public/') ? post.imageUrl.replace('public/', '/') : post.imageUrl} 
+                    alt={`Image for ${post.location} - ${post.description.substring(0, 100)}...`}
+                    fill
+                    className="object-cover"
+                    onError={() => {
+                      // Handle error with a fallback
+                    }}
+                  />
+                </div>
+              </ImagePreview>
             </div>
           )}
 

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { ArrowUp, ArrowDown, MessageCircle, Share } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { CommentSection } from "@/components/ui/comment-section"
+import { ImagePreview } from "@/components/ui/image-preview"
 import { updateUserVote } from "@/lib/vote-persistence"
 // import { getClientId } from "@/lib/client-id"
 import type { Post } from "@/lib/types"
@@ -105,17 +106,24 @@ export function PostDetailView({ post: initialPost, onVote }: PostDetailViewProp
 
             {/* Image if present */}
             {post.imageUrl && (
-              <div className="mb-4 rounded-2xl overflow-hidden border border-border relative max-h-96">
-                <Image 
-                  src={post.imageUrl.startsWith('public/') ? post.imageUrl.replace('public/', '/') : post.imageUrl} 
+              <div className="mb-4">
+                <ImagePreview
+                  src={post.imageUrl.startsWith('public/') ? post.imageUrl.replace('public/', '/') : post.imageUrl}
                   alt={`Image for ${post.location} - ${post.description.substring(0, 100)}...`}
-                  width={600}
-                  height={400}
-                  className="w-full max-h-96 object-cover"
-                  onError={() => {
-                    // Handle error with a fallback
-                  }}
-                />
+                >
+                  <div className="rounded-2xl overflow-hidden border border-border relative max-h-96 cursor-pointer hover:opacity-90 transition-opacity">
+                    <Image 
+                      src={post.imageUrl.startsWith('public/') ? post.imageUrl.replace('public/', '/') : post.imageUrl} 
+                      alt={`Image for ${post.location} - ${post.description.substring(0, 100)}...`}
+                      width={600}
+                      height={400}
+                      className="w-full max-h-96 object-cover"
+                      onError={() => {
+                        // Handle error with a fallback
+                      }}
+                    />
+                  </div>
+                </ImagePreview>
               </div>
             )}
 
