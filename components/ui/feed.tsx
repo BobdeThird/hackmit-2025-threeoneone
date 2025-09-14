@@ -5,6 +5,7 @@ import { PostCard } from "@/components/ui/post-card"
 import type { Post } from "@/lib/types"
 import { supabase } from "@/lib/supabaseClient"
 import { getUserVoteForPost, updateUserVote } from "@/lib/vote-persistence"
+import { computeHotScore } from "@/lib/utils"
 
 interface FeedProps {
   selectedCity: string
@@ -47,6 +48,14 @@ export function Feed({ selectedCity }: FeedProps) {
         comments: [],
       }))
 
+      // Sort by hotness with recency tiebreaker
+      mapped.sort((a, b) => {
+        const hb = computeHotScore(b.upvotes, b.downvotes, b.createdAt)
+        const ha = computeHotScore(a.upvotes, a.downvotes, a.createdAt)
+        if (hb !== ha) return hb - ha
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      })
+
       // Fetch comments count in batch
       try {
         const ids = mapped.map(m => m.id)
@@ -66,7 +75,16 @@ export function Feed({ selectedCity }: FeedProps) {
       if (isInitial) {
         setPosts(mapped)
       } else {
-        setPosts(prev => [...prev, ...mapped])
+        setPosts(prev => {
+          const combined = [...prev, ...mapped]
+          combined.sort((a, b) => {
+            const hb = computeHotScore(b.upvotes, b.downvotes, b.createdAt)
+            const ha = computeHotScore(a.upvotes, a.downvotes, a.createdAt)
+            if (hb !== ha) return hb - ha
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          })
+          return combined
+        })
       }
 
       // Check if we have more data
