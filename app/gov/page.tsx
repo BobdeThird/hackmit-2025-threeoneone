@@ -6,7 +6,7 @@ import { MapPin, Navigation } from "lucide-react";
 
 type CaseItem = {
   id: string;
-  city: "sf" | "boston";
+  city: "sf" | "boston" | "nyc";
   category: string;
   description: string;
   address?: string;
@@ -110,17 +110,14 @@ export default function GovPage() {
     return () => map.current?.remove();
   }, [mapboxToken]);
 
-  // Fetch ~1k 311 items once token present (so we can render immediately after)
+  // Fetch items via unified API once token present
   useEffect(() => {
     if (!mapboxToken) return;
     (async () => {
       try {
-        const [sfRes, bosRes] = await Promise.all([
-          fetch("/api/311/sf?limit=1000"),
-          fetch("/api/311/boston?status=open&limit=1000"),
-        ]);
-        const [sf, bos] = await Promise.all([sfRes.json(), bosRes.json()]);
-        const combined: CaseItem[] = [...(sf.items || []), ...(bos.items || [])];
+        const res = await fetch("/api/reports?limit=1000");
+        const json = await res.json();
+        const combined: CaseItem[] = json.items || [];
         setItems(combined);
       } catch (e) {
         console.error("Failed to load 311 data", e);
