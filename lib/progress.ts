@@ -51,7 +51,7 @@ export async function appendEvent(params: {
       message: params.message ?? null,
       data: params.data ?? null,
     })
-  } catch (_) {
+  } catch {
     // non-fatal for dev
   }
 }
@@ -69,7 +69,7 @@ export async function addArtifact(params: {
       uri: params.uri ?? null,
       meta: params.meta ?? null,
     })
-  } catch (_) {
+  } catch {
     // non-fatal in dev
   }
 }

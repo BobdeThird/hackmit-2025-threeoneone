@@ -15,7 +15,7 @@ const databaseServer = createSdkMcpServer({
         where: z.array(z.object({
           column: z.string(),
           op: z.enum(['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'ilike', 'in']),
-          value: z.any()
+          value: z.union([z.string(), z.number(), z.boolean(), z.array(z.string())])
         })).optional().describe("WHERE conditions"),
         orderBy: z.object({
           column: z.string(),
@@ -33,7 +33,7 @@ const databaseServer = createSdkMcpServer({
               if (condition.op === 'in' && Array.isArray(condition.value)) {
                 query = query.in(condition.column, condition.value);
               } else if (condition.op === 'ilike') {
-                query = query.ilike(condition.column, condition.value);
+                query = query.ilike(condition.column, String(condition.value));
               } else {
                 // Type-safe approach for other operators
                 switch (condition.op) {
@@ -143,7 +143,7 @@ const databaseServer = createSdkMcpServer({
           }
           
           // Group by day and calculate metrics
-          const dailyStats = data?.reduce((acc: Record<string, any>, row) => {
+          const dailyStats = data?.reduce((acc: Record<string, { count: number; rankings: number[]; times: number[] }>, row) => {
             const date = new Date(row.reported_time).toISOString().split('T')[0];
             if (!acc[date]) {
               acc[date] = { count: 0, rankings: [], times: [] };
@@ -154,7 +154,7 @@ const databaseServer = createSdkMcpServer({
             return acc;
           }, {});
           
-          const analysis = Object.entries(dailyStats || {}).map(([date, stats]: [string, any]) => ({
+          const analysis = Object.entries(dailyStats || {}).map(([date, stats]: [string, { count: number; rankings: number[]; times: number[] }]) => ({
             date,
             count: stats.count,
             avg_ranking: stats.rankings.reduce((a: number, b: number) => a + b, 0) / stats.rankings.length,
@@ -233,9 +233,8 @@ const databaseServer = createSdkMcpServer({
 
 // Policy analysis function using Claude Code
 export async function runPolicyAnalysis(
-  prompt: string,
-  onMessage?: (message: any) => void
-): Promise<AsyncGenerator<any, void, unknown>> {
+  prompt: string
+): Promise<AsyncGenerator<{ type: string; content?: unknown }, void, unknown>> {
   
   const fullPrompt = `You are a senior policy analyst specializing in municipal 311 data analysis. 
 
